@@ -519,6 +519,7 @@
       if (cell && event.key === 'Enter') { event.preventDefault(); editCell(cell); }
     }, { signal: listeners.signal });
     return {
+      async flush() { if (editing && !await commitEdit()) return false; return !saving && !fileSaving; },
       openTbl() { if (active) find('[data-reference-file=tbl]').click(); },
       saveTbl() { requestSave('tbl'); },
       importExcel() { if (active) find('[data-reference-file=xlsx]').click(); },

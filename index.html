@@ -7,6 +7,7 @@
   <title>WMS by Gics</title>
   <link rel="stylesheet" href="css/standalone.css">
   <link rel="stylesheet" href="css/floor-plan-editor.css">
+  <link rel="stylesheet" href="css/warehouse-3d.css">
   <script defer src="data/wms-reference-seed.js"></script>
   <script defer src="js/floor-plan-model.js"></script>
   <script defer src="js/floor-plan-reference-model.js"></script>
@@ -15,10 +16,13 @@
   <script defer src="js/floor-plan-reference-data.js"></script>
   <script defer src="js/floor-plan-rack-master.js"></script>
   <script defer src="js/floor-plan-editor.js"></script>
+  <script defer src="js/warehouse-local-data.js"></script>
+  <script defer src="js/warehouse-page.js"></script>
   <script defer src="js/standalone.js"></script>
 </head>
 <body>
   <main id="editor" class="content-area floor-plan-page" aria-label="WMS by Gics" data-view-type="floorPlanEditor"></main>
+  <section id="viewer3d" class="content-area warehouse-page" aria-label="3D View" data-view-type="warehouse3d" hidden></section>
   <noscript>에디터를 실행하려면 브라우저의 JavaScript를 켜 주세요.</noscript>
 </body>
 </html>

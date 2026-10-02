@@ -31,7 +31,8 @@ fs.mkdirSync(out, { recursive: true });
   try {
     await page.goto(targetUrl);
     await page.locator('.fp-editor[data-editable=true]').waitFor();
-    assert.equal(await page.locator('#loginScreen,#sidebar,[data-action=viewer3d]').count(), 0);
+    assert.equal(await page.locator('#loginScreen,#sidebar').count(), 0);
+    assert.equal(await page.locator('[data-action=viewer3d]').count(), 1);
     assert.equal(await page.title(), 'WMS by Gics');
     check((fileMode ? 'file:// offline' : targetUrl) + ' opens only the editor without login');
     await page.locator('[data-rack-count=bays]').fill('2'); await page.locator('[data-rack-count=bays]').press('Tab');

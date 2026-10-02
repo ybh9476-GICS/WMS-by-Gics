@@ -1,0 +1,10 @@
+{
+  "name": "wms-by-gics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "로컬 HTML에서 독립 실행하는 WMS by Gics 에디터",
+  "scripts": {
+    "dev": "node scripts/local-server.cjs",
+    "test": "node tests/run.cjs"
+  }
+}

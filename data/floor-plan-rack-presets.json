@@ -1,0 +1,61 @@
+{
+  "source": {
+    "documentId": "12G9JIftGIVStzWUxIVZrz0JZsJ858Mc90V7-fnfBiHM",
+    "sheet": "랙타입 마스터",
+    "range": "A4:H",
+    "checkedAt": "2026-09-17",
+    "unit": "m"
+  },
+  "rackTypes": [
+    {
+      "id": "PALLET-4L",
+      "name": "팔레트 랙 4단",
+      "bayWidth": 1,
+      "depth": 4,
+      "height": 10,
+      "levels": 10,
+      "levelHeight": 1,
+      "depthCount": 4
+    },
+    {
+      "id": "PALLET-4L-DBL",
+      "name": "팔레트 랙 4단",
+      "bayWidth": 2.5,
+      "depth": 2.5,
+      "height": 6,
+      "levels": 4,
+      "levelHeight": 1.4,
+      "depthCount": 2
+    },
+    {
+      "id": "SHELF-5L",
+      "name": "경량 선반 5단",
+      "bayWidth": 1.5,
+      "depth": 0.5,
+      "height": 2.4,
+      "levels": 5,
+      "levelHeight": 0.4,
+      "depthCount": 1
+    },
+    {
+      "id": "PALLET-3L-DBL",
+      "name": "양면 팔레트 랙 3단",
+      "bayWidth": 2.5,
+      "depth": 2,
+      "height": 5.2,
+      "levels": 3,
+      "levelHeight": 1.6,
+      "depthCount": 2
+    },
+    {
+      "id": "FLOOR",
+      "name": "바닥 적치",
+      "bayWidth": 1.5,
+      "depth": 1,
+      "height": 1.5,
+      "levels": 1,
+      "levelHeight": 1.5,
+      "depthCount": 1
+    }
+  ]
+}

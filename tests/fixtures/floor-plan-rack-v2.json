@@ -1,0 +1,189 @@
+{
+  "format": "plandy-floor-editor",
+  "version": 2,
+  "name": "연습용 창고",
+  "width": 30,
+  "height": 24,
+  "grid": 0.5,
+  "rackTypes": [
+    {
+      "id": "RACK-01",
+      "name": "예시 표준 랙",
+      "bayWidth": 2,
+      "depth": 1,
+      "height": 6,
+      "levels": 4,
+      "depthCount": 1
+    },
+    {
+      "id": "RACK-02",
+      "name": "예시 정밀 랙",
+      "bayWidth": 1.23,
+      "depth": 1.23,
+      "height": 6,
+      "levels": 4,
+      "depthCount": 2
+    }
+  ],
+  "objects": [
+    {
+      "id": "W01",
+      "kind": "W",
+      "x": 2,
+      "y": 3,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "W02",
+      "kind": "W",
+      "x": 8,
+      "y": 3,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "W03",
+      "kind": "W",
+      "x": 14,
+      "y": 3,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "W04",
+      "kind": "W",
+      "x": 2,
+      "y": 9,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "W05",
+      "kind": "W",
+      "x": 8,
+      "y": 9,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "W06",
+      "kind": "W",
+      "x": 14,
+      "y": 9,
+      "w": 4,
+      "h": 3,
+      "angle": 0,
+      "rackTypeId": "RACK-01",
+      "bayGap": 0,
+      "rowGap": 0,
+      "locked": false
+    },
+    {
+      "id": "ST01",
+      "kind": "ST",
+      "points": [
+        {
+          "x": 2,
+          "y": 7
+        },
+        {
+          "x": 19.5,
+          "y": 7
+        }
+      ],
+      "width": 1.5,
+      "cap": "butt",
+      "locked": false
+    },
+    {
+      "id": "S01",
+      "kind": "S",
+      "x": 19.5,
+      "y": 6,
+      "w": 2,
+      "h": 2,
+      "angle": 0,
+      "locked": false
+    },
+    {
+      "id": "T01",
+      "kind": "T",
+      "points": [
+        {
+          "x": 22.5,
+          "y": 7
+        },
+        {
+          "x": 22.5,
+          "y": 14.5
+        }
+      ],
+      "width": 2,
+      "cap": "butt",
+      "locked": false
+    },
+    {
+      "id": "B01",
+      "kind": "B",
+      "x": 23.5,
+      "y": 13,
+      "w": 3,
+      "h": 3,
+      "angle": 0,
+      "locked": false
+    },
+    {
+      "id": "CV01",
+      "kind": "CV",
+      "points": [
+        {
+          "x": 27.25,
+          "y": 13
+        },
+        {
+          "x": 27.25,
+          "y": 20.5
+        }
+      ],
+      "width": 1.5,
+      "cap": "butt",
+      "locked": false
+    },
+    {
+      "id": "D01",
+      "kind": "D",
+      "x": 24,
+      "y": 20.5,
+      "w": 5,
+      "h": 2.5,
+      "angle": 0,
+      "locked": false
+    }
+  ]
+}

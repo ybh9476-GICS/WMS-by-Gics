@@ -1,0 +1,8 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),M=require('../js/floor-plan-model.js');
+const window={WmsFloorPlanModel:M};for(const file of ['warehouse-drawing','warehouse-route-preview'])vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../js/'+file+'.js'),'utf8'),{window});
+const plan={objects:[{id:'T1',kind:'T',width:2,points:[{x:0,y:0},{x:2,y:0},{x:4,y:0}],branches:[{id:'B1',from:1,points:[{x:2,y:2}]}]},{id:'GR1',kind:'GR',width:1,points:[{x:0,y:5},{x:3,y:5}]}]};
+const actors=[{id:'A1',code:'A1',kind:'AMR',x:0,y:0,w:.5,h:.5,angle:0,routeId:'T1'},{id:'S1',code:'S1',kind:'SH',x:0,y:5,w:.5,h:.5,angle:0,routeId:'GR1'},{id:'A2',code:'A2',kind:'AMR',x:0,y:0,w:3,h:3,angle:0,routeId:'T1'},{id:'A3',code:'A3',kind:'AMR',x:9,y:9,w:1,h:1,angle:0,routeId:''}];
+const before=JSON.stringify({plan,actors}),sim=window.WmsWarehouseRoutePreview.create(plan,actors,.2);let branch=false,left=false,right=false;
+for(let i=0;i<400;i++){sim.tick(.1);const p=sim.actors.get('A1').position;assert.ok((Math.abs(p.z)<1e-8&&p.x>=0&&p.x<=4)||(Math.abs(p.x-2)<1e-8&&p.z>=0&&p.z<=2));branch||=p.z>1.5;left||=p.x<.1;right||=p.x>3.9;const s=sim.actors.get('S1').position;assert.equal(s.z,5);assert.ok(s.x>=0&&s.x<=3);}
+assert.ok(branch&&left&&right,'all connected branches repeat');assert.match(sim.actors.get('A2').status,/폭/);assert.match(sim.actors.get('A3').status,/미지정/);assert.equal(JSON.stringify({plan,actors}),before);assert.equal(sim.actors.get('A1').speed,1);
+console.log('PASS route preview: repeat/end reversal/branches, T vs GR, no master requirement, width/unassigned guards, source preservation');

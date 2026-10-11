@@ -27,7 +27,7 @@
         if (window.wmsWarehouse3D) return Promise.resolve(window.wmsWarehouse3D);
         if (rendererPromise) return rendererPromise;
         rendererPromise = (async () => {
-            for (const src of ['vendor/three.js', 'js/warehouse-operations.js', 'js/warehouse-operation-scene.js', 'js/warehouse-barcode-tunnel.js']) {
+            for (const src of ['vendor/three.js', 'js/warehouse-operations.js', 'js/warehouse-operation-scene.js', 'js/warehouse-barcode-tunnel.js', 'js/warehouse-drawing.js', 'js/warehouse-route-preview.js', 'js/warehouse-conveyor-layout.js', 'js/warehouse-shuttle-rails.js', 'js/warehouse-drawing-scene.js']) {
                 if (document.querySelector('script[data-local-3d="'+src+'"]')) continue;
                 await new Promise((resolve, reject) => {
                     const script = document.createElement('script'); script.src = src;

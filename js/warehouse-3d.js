@@ -675,7 +675,7 @@
                 </div>
                 <div class="warehouse-3d-toolbar-actions">
                     <time class="warehouse-3d-current-time" aria-label="현재 시간"></time>
-                    <button class="warehouse-3d-reload" type="button" aria-label="시트 새로고침" title="시트 새로고침" hidden>
+                    <button class="warehouse-3d-reload" type="button" aria-label="기준정보 새로고침" title="기준정보 새로고침" hidden>
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
                     </button>
                     <button class="warehouse-3d-fullscreen" type="button" aria-label="전체화면" title="전체화면" aria-pressed="false">
@@ -884,6 +884,7 @@
     }
 
     function showError(shell, messages) {
+        if (!shell.loading.isConnected) shell.viewport.append(shell.loading);
         shell.loading.className = 'warehouse-3d-error';
         shell.loading.innerHTML = `<strong>3D 창고를 표시하지 못했습니다.</strong><ul>${messages.map((message) => `<li>${escapeHtml(message)}</li>`).join('')}</ul>`;
     }
@@ -1274,9 +1275,9 @@
             const startX = toNumber(rack.startX);
             const startY = toNumber(rack.startY);
             const vertical = rack.direction === 'vertical';
-            const footprint = vertical
+            const footprint = rack.footprint || (vertical
                 ? { minX: startX, maxX: startX + width, minY: startY, maxY: startY + length }
-                : { minX: startX, maxX: startX + length, minY: startY, maxY: startY + width };
+                : { minX: startX, maxX: startX + length, minY: startY, maxY: startY + width });
             const bounds = boundsByZone.get(zoneCode) || { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
             bounds.minX = Math.min(bounds.minX, footprint.minX);
             bounds.maxX = Math.max(bounds.maxX, footprint.maxX);
@@ -1320,7 +1321,8 @@
         floorDepth,
         rackCode = 'W04',
         dockCells = [],
-        floorPlanCellSize = 500
+        floorPlanCellSize = 500,
+        dockRegions = null
     ) {
         const width = Math.max(0, toNumber(floorWidth));
         const depth = Math.max(0, toNumber(floorDepth));
@@ -1353,6 +1355,7 @@
             return { rackCode: sourceCode, source, cellCount, side, bounds, distances, ...sideSettings[side] };
         };
 
+        if (Array.isArray(dockRegions)) return dockRegions.map(region => buildLayout(region.bounds, ['front','back','left','right'], 'drawingDock', region.code));
         const size = Math.max(1, toNumber(floorPlanCellSize, 500));
         const markedDockCells = (Array.isArray(dockCells) ? dockCells : [])
             .map((cell) => ({
@@ -1632,7 +1635,7 @@
         const yellow = new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.28, roughness: 0.42 });
         const rubber = new THREE.MeshStandardMaterial({ color: '#263441', roughness: 0.85 });
         resources.push(box, cylinder, steel, roller, yellow, rubber);
-        const parts = { steel: [], roller: [], yellow: [], rubber: [] };
+        const parts = layout.parts || { steel: [], roller: [], yellow: [], rubber: [] };
         const add = (kind, x, y, z, sx, sy, sz, rx = 0, rz = 0) => parts[kind].push({ x, y, z, sx, sy, sz, rx, rz });
         const legKeys = new Set();
         const addLeg = (x, z) => {
@@ -1692,7 +1695,8 @@
             mesh.name = `CONVEYOR-${kind.toUpperCase()}`;
             parts[kind].forEach((part, i) => {
                 transform.position.set(part.x, part.y, part.z);
-                transform.rotation.set(part.rx, 0, part.rz);
+                transform.rotation.order = part.ry === undefined ? 'XYZ' : 'YXZ';
+                transform.rotation.set(part.rx, part.ry || 0, part.rz);
                 transform.scale.set(part.sx, part.sy, part.sz);
                 transform.updateMatrix();
                 mesh.setMatrixAt(i, transform.matrix);
@@ -1703,7 +1707,7 @@
             group.add(mesh);
             resources.push(mesh);
         });
-        return { group, resources, rollerCount: parts.roller.length, supportCount: legKeys.size };
+        return { group, resources, rollerCount: parts.roller.length, supportCount: layout.supportCount ?? legKeys.size };
     }
 
     function groupConnectedFloorCells(cells, cellSize = 500) {
@@ -2254,7 +2258,8 @@
             data.meta?.floorDepth || 58000,
             'W04',
             data.meta?.dockCells,
-            data.meta?.floorPlanCellSize || 500
+            data.meta?.floorPlanCellSize || 500,
+            data.meta?.dockRegions || null
         );
         const loadingDockLayout = loadingDockLayoutEntries[0] || null;
         const openWallSide = loadingDockLayout?.side || '';
@@ -2637,7 +2642,7 @@
                 !claimedTruckSchedules.has(index) && schedule?.dockCode === layout.rackCode
             );
             const fallbackIndex = truckSchedules.findIndex((_, index) => !claimedTruckSchedules.has(index));
-            const scheduleIndex = exactIndex >= 0 ? exactIndex : fallbackIndex;
+            const scheduleIndex = exactIndex >= 0 ? exactIndex : data.meta?.source === 'drawing' ? -1 : fallbackIndex;
             if (scheduleIndex < 0) return;
             claimedTruckSchedules.add(scheduleIndex);
             schedulesByDock.set(layout.rackCode, truckSchedules[scheduleIndex]);
@@ -2893,7 +2898,7 @@
         const conveyorLayout = buildConveyorLayout(conveyorCells, data.meta?.floorPlanCellSize || 500);
         const conveyorModel = createConveyorModel(THREE, conveyorLayout, warehouseFloorElevation);
         scene.add(conveyorModel.group);
-        const barcodeTunnelLayout = window.WmsBarcodeTunnel.buildLayout(data.meta?.barcodeTunnelCells, conveyorCells, data.meta?.floorPlanCellSize);
+        const barcodeTunnelLayout = data.meta?.source === 'drawing' ? window.WmsWarehouseDrawingScene.tunnels(data.meta.plan) : window.WmsBarcodeTunnel.buildLayout(data.meta?.barcodeTunnelCells, conveyorCells, data.meta?.floorPlanCellSize);
         const barcodeTunnelModel = window.WmsBarcodeTunnel.createModel(THREE, barcodeTunnelLayout, warehouseFloorElevation);
         const barcodeTunnelTargets = [];
         const barcodeTunnelLabelTargets = [];
@@ -3031,7 +3036,7 @@
             data.meta?.floorPlanCellSize || 500
         );
         const shuttleFootprintMm = calculateShuttleFootprintMm(
-            shuttleRailLayout.stations,
+            data.meta?.source === 'drawing' ? data.meta.plan.objects.filter(o=>o.kind==='S').map(o=>({minX:0,minY:0,maxX:o.w*1000,maxY:o.h*1000})) : shuttleRailLayout.stations,
             data.meta?.floorPlanCellSize || 500
         );
         const shuttleFootprintMeters = mm(shuttleFootprintMm);
@@ -3600,11 +3605,12 @@
             const depth = mm(type.depth);
             const height = mm(type.height);
             const levelHeight = mm(type.levelHeight) || height / Math.max(1, type.levels);
-            const length = bayWidth * rack.bayCount;
+            const bayGap = mm(rack.bayGap), rowGap = mm(rack.rowGap);
+            const length = bayWidth * rack.bayCount + bayGap * (rack.bayCount - 1);
             const rackRowCount = Math.max(1, Math.round(Number(rack.rackRowCount) || 1));
             const depthCount = Math.max(1, Math.round(Number(type.depthCount) || 1));
             const slotDepth = depth / depthCount;
-            const rackWidth = depth * rackRowCount;
+            const rackWidth = depth * rackRowCount + rowGap * (rackRowCount - 1);
             const group = new THREE.Group();
             group.name = rack.code;
             const rackHorizontalFrameColor = '#f5b942';
@@ -3619,9 +3625,9 @@
             const rackData = { kind: 'rack', rack, type, zone: zoneByCode.get(rack.zoneCode) };
             const rackStructureObjects = [];
             const postSize = Math.min(0.1, Math.max(0.055, bayWidth * 0.045));
-            const depthFramePositions = getRackDepthFramePositions(rackRowCount, depthCount, depth);
-            for (let bay = 0; bay <= rack.bayCount; bay += 1) {
-                const x = bay * bayWidth;
+            const depthFramePositions = [...new Set(Array.from({length:rackRowCount},(_,row)=>Array.from({length:depthCount+1},(_,d)=>row*(depth+rowGap)+d*slotDepth)).flat())];
+            const bayFramePositions = [...new Set(Array.from({length:rack.bayCount},(_,bay)=>[bay*(bayWidth+bayGap),bay*(bayWidth+bayGap)+bayWidth]).flat())];
+            for (const x of bayFramePositions) {
                 depthFramePositions.forEach((z) => {
                     rackStructureObjects.push(
                         addBox(group, [postSize, height, postSize], [x, height / 2, z], rackVerticalFrameColor, rackData, rackFrameMaterial)
@@ -3636,7 +3642,7 @@
                     );
                 });
                 for (let rackRow = 0; rackRow < rackRowCount; rackRow += 1) {
-                    const rowStart = rackRow * depth;
+                    const rowStart = rackRow * (depth + rowGap);
                     if (level < type.levels) rackStructureObjects.push(addBox(
                             group,
                             [length, 0.035, depth],
@@ -3696,14 +3702,14 @@
                             cargoBoxSize: [boxWidth, unitLoad.cargoHeight, boxDepth],
                             palletSize: [unitLoad.palletWidth, unitLoad.palletHeight, unitLoad.palletDepth],
                             position: [
-                                (bay - 0.5) * bayWidth,
+                                (bay - 0.5) * bayWidth + (bay - 1) * bayGap,
                                 (level - 1) * levelHeight + boxHeight / 2 + 0.06,
-                                (rackRow - 1) * depth + (depthIndex - 0.5) * slotDepth
+                                (rackRow - 1) * (depth + rowGap) + (depthIndex - 0.5) * slotDepth
                             ],
                             cargoPosition: [
-                                (bay - 0.5) * bayWidth,
+                                (bay - 0.5) * bayWidth + (bay - 1) * bayGap,
                                 (level - 1) * levelHeight + 0.06 + unitLoad.palletHeight + unitLoad.cargoHeight / 2,
-                                (rackRow - 1) * depth + (depthIndex - 0.5) * slotDepth
+                                (rackRow - 1) * (depth + rowGap) + (depthIndex - 0.5) * slotDepth
                             ],
                             palletBaseY: (level - 1) * levelHeight + 0.06
                         });
@@ -3844,7 +3850,10 @@
             group.add(rackHoverOutline, rackSelectedOutline);
             const startX = mm(rack.startX);
             const startZ = mm(rack.startY);
-            if (rack.direction === 'vertical') {
+            if (rack.layoutSource === 'drawing') {
+                group.position.set(startX, warehouseFloorElevation, startZ);
+                group.rotation.y = -rack.angle * Math.PI / 180;
+            } else if (rack.direction === 'vertical') {
                 group.position.set(startX + rackWidth, warehouseFloorElevation, startZ);
                 group.rotation.y = -Math.PI / 2;
             } else group.position.set(startX, warehouseFloorElevation, startZ);
@@ -4010,7 +4019,7 @@
         const liftPostThickness = 0.09;
         const liftPostGeometry = new THREE.BoxGeometry(liftPostThickness, 1, liftPostThickness);
         const rackTopFrameElevation = Math.max(0, ...rackEntries.map((entry) => mm(entry.type.height)));
-        shuttleLiftEntries.forEach((lift) => {
+        const createLiftModel = (lift) => {
             const group = new THREE.Group();
             group.name = `WAREHOUSE-SHUTTLE-LIFT-${lift.code}`;
             group.userData = {
@@ -4070,7 +4079,9 @@
             scene.add(group);
             lift.group = group;
             lift.platform = platform;
-        });
+            return lift;
+        };
+        shuttleLiftEntries.forEach(createLiftModel);
         const shuttleBodyClearance = Math.min(0.1, shuttleFootprintMeters * 0.1);
         const shuttleBodySize = Math.max(0.25, shuttleFootprintMeters - shuttleBodyClearance);
         const shuttleBodyCenterY = shuttleFrameCenterOffset - shuttleTravelBaseOffset;
@@ -4916,12 +4927,61 @@
             shell.viewport.dataset.shuttleStates = shuttleFleet.map((shuttle) => shuttle.state).join(',');
             return true;
         };
-        const operations = Array.isArray(data.operationRoutes) ? window.createWarehouseOperationScene({
+        // Both data sources use these same physical models and screen-space labels.
+        const createDrawingEquipment = (object, index) => {
+            const isShuttle = object.kind === 'SH';
+            const dimensions = calculateShuttleLoadDimensions(rackEntries.flatMap(entry => entry.slots), data.meta.floorPlanCellSize);
+            const model = isShuttle ? createShuttleModel(index, {code:object.code}, dimensions) : createForkliftModel(index);
+            if (model.load) model.load.visible = false;
+            const visual = model.group;
+            visual.rotation.y = Math.PI / 2;
+            visual.updateMatrixWorld(true);
+            const physicalBounds = new THREE.Box3();
+            visual.traverse(part => {
+                if (!part.isMesh || part.geometry?.type === 'CircleGeometry') return;
+                for (let p=part; p && p!==visual; p=p.parent) if (p===model.load) return;
+                if (!part.geometry.boundingBox) part.geometry.computeBoundingBox();
+                physicalBounds.union(part.geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
+            });
+            const size=physicalBounds.getSize(new THREE.Vector3()), center=physicalBounds.getCenter(new THREE.Vector3());
+            const fitted=new THREE.Group();fitted.name='drawing-equipment-fit';
+            fitted.scale.set(object.w/size.x,object.height/size.y,object.h/size.z);
+            visual.position.set(-center.x,-physicalBounds.min.y,-center.z);fitted.add(visual);
+            const group=new THREE.Group();group.name=visual.name;group.userData={...visual.userData,drawingId:object.id,equipmentCode:object.code};group.add(fitted);
+            group.position.set(object.x+object.w/2,warehouseFloorElevation,object.y+object.h/2);group.rotation.y=-object.angle*Math.PI/180;
+            const equipment={...model,group,visual,visualScaleY:fitted.scale.y,drawingObject:object,
+                equipmentCode:object.code,equipmentName:object.master?.name||object.id,equipmentType:object.master?.type||object.kind,
+                modelName:object.master?.modelName||'',configuredSpeed:object.master?.configuredSpeed||0,
+                ...object.status,communicationStatus:object.status?.communicationStatus||'OFFLINE',equipmentStatus:object.status?.equipmentStatus||'미설정',
+                kindLabel:isShuttle?'4 WAY SHUTTLE':'AMR',state:'대기',transportHistory:[],loadDimensions:dimensions,
+                forkHeight:travelForkHeight,forkExtension:0,task:null,carriedLoad:null};
+            equipment.label=createAmrLabelSprite(THREE,{name:equipment.equipmentName,communicationStatus:equipment.communicationStatus,equipmentStatus:equipment.equipmentStatus});
+            equipment.label.name=`${equipment.equipmentName}-status-billboard`;
+            equipment.label.position.set(0,object.height+.72,0);
+            equipment.label.userData={...equipment.label.userData,kind:'amr-label',amr:equipment,equipmentKind:isShuttle?'shuttle':'amr'};
+            group.add(equipment.label);amrLabelTargets.push(equipment.label);
+            (isShuttle?shuttleFleet:amrFleet).push(equipment);scene.add(group);
+            return equipment;
+        };
+        const createDrawingLift = (object) => {
+            const lift=createLiftModel({code:object.id,stationCode:object.id,x:object.x+object.w/2,z:object.y+object.h/2,
+                width:object.w,depth:object.h,height:liftHeight,levelStops:shuttleLevelElevations.map(mm)});
+            lift.group.rotation.y=-object.angle*Math.PI/180;
+            shuttleLiftEntries.push(lift);
+            return lift;
+        };
+        const operationFactory = data.meta?.source === 'drawing' ? window.WmsWarehouseDrawingScene.mount : window.createWarehouseOperationScene;
+        const operations = Array.isArray(data.operationRoutes) ? operationFactory({
             THREE, shell, data, scene, signal, amrFleet, shuttleFleet, shuttleLiftEntries, rackEntries,
             passageNavigation, shuttleNavigation, buildPassageNavigationGraph, createTaskLoad,
             setSlotInstanceVisible, warehouseFloorElevation, shuttleTravelBaseOffset,
+            resetSimulationExtras: () => {barcodeTunnelModel.reset();if(selectedBarcodeTunnel)showBarcodeTunnelSelection(selectedBarcodeTunnel);},
             shuttleBodyCenterY, shuttleFrameHeight, setForkHeight, setForkExtension, stackerDimensions, travelForkHeight,
             isLevelFocused: () => Boolean(activeRackLevelFocus),
+            createDrawingEquipment, createDrawingLift,
+            createLabel: text => createLabelSprite(THREE,text),
+            createConveyor: layout => createConveyorModel(THREE,layout,0),
+            originalShuttleFrame: {deckMaterial:shuttleDeckMaterial,frameMaterial:shuttleFrameMaterial,frameHeight:shuttleFrameHeight,frameOffset:shuttleFrameCenterOffset},
             slotVisualState: slot => ({
                 visible: !activeRackLevelFocus || (slot.rack === activeRackLevelFocus.rackData.rack && slot.level === activeRackLevelFocus.level),
                 opacity: rackEntries.find(entry => entry.rack === slot.rack)?.dimmed ? 0.12 : 1,
@@ -5006,7 +5066,7 @@
             })));
             const shuttleIsActive = operations ? false : updateShuttleFleet(frameTime);
             const selectedTunnelScanCount = selectedBarcodeTunnel?.scans ?? -1;
-            const scannerIsActive = !activeRackLevelFocus && barcodeTunnelModel.update(frameTime,
+            const scannerIsActive = !activeRackLevelFocus && barcodeTunnelModel.update(data.meta?.source==='drawing'&&operations?operations.elapsed*1000:frameTime,
                 scene.children.filter(object => object.name.startsWith('operation-pallet-')),
                 resolveBarcodeScanMetadata);
             barcodeTunnelModel.entries.forEach(entry => {
@@ -5032,12 +5092,13 @@
             shell.viewport.dataset.barcodeTunnelScans = barcodeTunnelModel.entries.map(e => e.scans).join(',');
             shell.viewport.dataset.barcodeTunnelFlashing = barcodeTunnelModel.entries.map(e => Number(e.glow.visible)).join(',');
             updateAmrFollow(frameTime);
-            if (!destroyed && renderer.domElement.isConnected) {
+            if (!destroyed && renderer.domElement.isConnected && shell.viewport.clientWidth && shell.viewport.clientHeight) {
                 renderer.render(scene, camera);
                 updateTruckInvoiceButtons();
                 updateHoverTooltipPosition();
             }
-            if (activeWorldUiTransitions.size
+            if ((data.meta?.source === 'drawing' && operations)
+                || activeWorldUiTransitions.size
                 || scannerIsActive
                 || (amrIsActive && shell.viewport.clientWidth && shell.viewport.clientHeight)
                 || (shuttleIsActive && shell.viewport.clientWidth && shell.viewport.clientHeight)) requestRender();
@@ -5425,7 +5486,7 @@
         const historyDialog = document.createElement('dialog');
         historyDialog.className = 'warehouse-history-dialog';
         historyDialog.setAttribute('aria-label', '설비 작업 이력');
-        historyDialog.innerHTML = '<div class="warehouse-history-dialog-content"><header><h3></h3><button type="button" class="warehouse-history-close" aria-label="작업 이력 닫기">닫기</button></header><p class="warehouse-history-caption">현재 모의 운행의 이력입니다. 화면 재진입·시트 새로고침 시 초기화됩니다.</p><div class="warehouse-history-table-scroll"><table class="warehouse-history-table"><thead></thead><tbody></tbody></table></div><footer><span class="warehouse-history-count"></span><span>운행 중 자동 갱신</span></footer></div>';
+        historyDialog.innerHTML = '<div class="warehouse-history-dialog-content"><header><h3></h3><button type="button" class="warehouse-history-close" aria-label="작업 이력 닫기">닫기</button></header><p class="warehouse-history-caption">현재 모의 운행의 이력입니다. 기준정보 새로고침 또는 모의 운행 초기화 시 이력이 초기화됩니다.</p><div class="warehouse-history-table-scroll"><table class="warehouse-history-table"><thead></thead><tbody></tbody></table></div><footer><span class="warehouse-history-count"></span><span>운행 중 자동 갱신</span></footer></div>';
         shell.viewport.closest('.warehouse-3d-shell').append(historyDialog);
         let historyTarget = null;
         let historyKind = '';
@@ -6212,6 +6273,7 @@
             if (animationFrame) cancelAnimationFrame(animationFrame);
             resizeObserver.disconnect();
             geometryCache.forEach((geometry) => geometry.dispose());
+            operations?.dispose?.();
             outlineGeometryCache.forEach((geometry) => geometry.dispose());
             outlineTubeGeometryCache.forEach((geometry) => geometry.dispose());
             materialCache.forEach((material) => material.dispose());
@@ -6294,7 +6356,12 @@
         options.onShell?.(container);
         if (options.loadData) {
             shell.reload.hidden = false;
-            shell.reload.addEventListener('click', () => mount(container, options), { signal: abortController.signal });
+            shell.reload.addEventListener('click', async () => {
+                shell.reload.disabled = true;
+                try { if(options.onReload)await options.onReload();else await mount(container, options); }
+                catch(error) { shell.reload.title='기준정보 새로고침 실패: '+error.message; }
+                finally { shell.reload.disabled=false; }
+            }, { signal: abortController.signal });
         }
         try {
             const [THREE] = await Promise.all([loadThree(), loadOperations(), loadBarcodeTunnels()]);
@@ -6307,10 +6374,20 @@
             }
             if (abortController.signal.aborted || !container.isConnected) return controller;
             // The bottom panel is intentionally empty; retain nonfatal diagnostics in the console only.
-            const warnings = [data.meta?.equipmentLoadWarning, data.meta?.equipmentStatusLoadWarning,
+            const warnings = [...(data.meta?.warnings || []), data.meta?.equipmentLoadWarning, data.meta?.equipmentStatusLoadWarning,
                 ...(data.meta?.layoutErrors || []), ...(data.meta?.unmappedFloorRackCodes || []),
                 ...(data.meta?.unplacedRackCodes || []), ...(data.meta?.outOfRangeLocationCodes || [])].filter(Boolean);
             if (warnings.length) console.warn('[3D 창고 기준정보]', warnings);
+            if (data.meta?.source === 'drawing') {
+                const brand=container.querySelector('.warehouse-3d-brand-copy');
+                brand.querySelector('strong').textContent=data.meta.name;
+                brand.querySelector('small').textContent='평면도 + 로컬 기준 정보';
+                const details=document.createElement('details');details.className='warehouse-drawing-warnings';
+                const summary=document.createElement('summary');summary.textContent=warnings.length?'연결 확인 '+warnings.length+'건':'도면 연결 정상';details.append(summary);
+                for(const warning of warnings){const line=document.createElement('p');line.textContent=String(warning);details.append(line);}
+                shell.viewport.closest('.warehouse-3d-shell').querySelector('.warehouse-3d-bottom-panel').append(details);
+                shell.viewport.dataset.drawingName=data.meta.name;
+            }
             disposeScene = startWarehouseScene(THREE, shell, data, abortController.signal);
         } catch (error) {
             if (error?.name !== 'AbortError') showError(shell, [error?.message || '알 수 없는 오류가 발생했습니다.', '기준정보 내용과 로컬 3D 파일을 확인해 주세요.']);

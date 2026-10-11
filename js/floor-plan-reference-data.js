@@ -300,7 +300,7 @@
       if (file.size > 30000000) { status('30MB 이하의 파일을 사용하세요.', true); return; }
       try {
         status('파일을 확인하는 중…');
-        const next = kind === 'tbl' ? files.parseTbl(await file.text()) : await files.importExcel(await file.arrayBuffer(), await excelLibrary());
+        const next = store.upgrade(kind === 'tbl' ? files.parseTbl(await file.text()) : await files.importExcel(await file.arrayBuffer(), await excelLibrary()));
         const count = next.sheets.reduce((total, sheet) => total + sheet.cells.length, 0);
         if (!active) return;
         if (!window.confirm(file.name + '의 ' + next.sheets.length + '개 시트, 값이 있는 셀 ' + count.toLocaleString() + '개로 현재 기준정보 전체를 덮어쓰겠습니까?\n기존 데이터가 필요하면 먼저 .tbl 파일로 저장하세요.')) {

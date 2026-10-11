@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const M=require('../js/floor-plan-model.js'),R=require('../js/floor-plan-reference-model.js');
+const window={WmsFloorPlanModel:M,WmsFloorPlanReferenceModel:R,dispatchEvent(){}};
+const ctx=vm.createContext({window,console,Event:class{}});
+for(const file of ['floor-plan-reference-store','warehouse-operations','warehouse-3d','warehouse-local-data','warehouse-drawing','warehouse-drawing-scene','warehouse-barcode-tunnel'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/'+file+'.js'),'utf8'),ctx);
+const fixture=require('./fixtures/drawing-connected.cjs'),{book,plan,locationCode}=fixture();
+const before=JSON.stringify({book,plan}),api=window.WmsWarehouseDrawing,data=api.convert(book,plan);
+assert.equal(JSON.stringify({book,plan}),before);
+assert.equal(data.racks.length,2);assert.equal(data.meta.source,'drawing');assert.equal(data.meta.floorWidth,20000);assert.equal(data.locations[0].locationCode,locationCode);
+const rack=data.racks[1],o=plan.objects[1],l=M.rackLayout(o,plan);
+const expected=M.rectPolygon({...o,x:o.x+(o.w-l.actualW)/2,y:o.y+(o.h-l.actualH)/2,w:l.actualW,h:l.actualH})[0];
+assert.ok(Math.abs(rack.startX/1000-expected.x)<1e-10);assert.ok(Math.abs(rack.startY/1000-expected.y)<1e-10);assert.equal(rack.angle,33);assert.equal(rack.bayGap,200);assert.equal(rack.rowGap,400);
+assert.equal(data.meta.actors[0].code,'AMR-001');assert.equal(data.meta.actors[0].master.configuredSpeed,10);
+const withoutLegacy=R.copy(book);withoutLegacy.sheets=withoutLegacy.sheets.filter(s=>!['평면도','랙배치','평면도 검증'].includes(s.name));assert.equal(api.convert(withoutLegacy,plan).racks.length,2);
+const graph=api.graph(plan,['T01'],500),node=(x,y)=>graph.nodes.find(n=>Math.abs(n.x-x*1000)<.001&&Math.abs(n.y-y*1000)<.001);
+const route=window.WmsWarehouseOperations.pathBetween(graph,node(3,6),node(8,9));assert.ok(route.length>3);assert.ok(route.some(n=>n.x===6000&&n.y===6000));assert.ok(route.some(n=>n.x===6000&&n.y===8000));assert.equal(api.graph(plan,['T01'],1600).nodes.length,0);
+const cv=api.graph(plan,['CV01'],0,true),a=cv.nodes.find(n=>n.y===9000),b=cv.nodes.find(n=>n.y===7000);assert.ok(window.WmsWarehouseOperations.pathBetween(cv,a,b).length);assert.equal(window.WmsWarehouseOperations.pathBetween(cv,b,a).length,0);
+// A 1m-wide rail touches the station at x=13.5 while its centerline is x=13.
+const rail=api.graph({objects:[{id:'GR',kind:'GR',width:1,points:[{x:13,y:4.5},{x:13,y:14.5}]}]},['GR'],1000);
+const station={x:13.5,y:4,w:1,h:1,angle:0},access=window.WmsWarehouseDrawingScene.access;
+assert.ok(access(rail,station,.15+.5));
+assert.equal(access(rail,{...station,x:13.66},.15+.5),null);
+assert.equal(access(api.graph({objects:[{id:'GR',kind:'GR',width:.9,points:[{x:13,y:4.5},{x:13,y:14.5}]}]},['GR'],1000),station,.15+.45),null);
+const nearest=window.WmsWarehouseDrawingScene.nearest;
+// Outer rack cell center is 1m from the rail centerline; a real gap still fails.
+assert.ok(nearest(rail,{x:12,y:5},.8/2+1/2+.2));
+assert.equal(nearest(rail,{x:11.8,y:5},.8/2+1/2+.2),null);
+const crossing={objects:[{id:'A',kind:'T',width:1,points:[{x:1,y:2},{x:3,y:2}]},{id:'B',kind:'T',width:1,points:[{x:2,y:1},{x:2,y:3}]}]};
+const isolated=api.graph(crossing,['A','B']),from=isolated.nodes.find(n=>n.x===1000&&n.y===2000),to=isolated.nodes.find(n=>n.x===2000&&n.y===3000);assert.equal(window.WmsWarehouseOperations.pathBetween(isolated,from,to).length,0);
+const duplicate=fixture();duplicate.book.sheets.find(s=>s.name==='작업지시').cells.push([3,1,'JOB1']);assert.throws(()=>api.convert(duplicate.book,duplicate.plan),/중복 작업 코드/);
+const stocked=fixture();stocked.book.sheets.find(s=>s.name==='재고 현황').cells.push([5,1,locationCode],[5,2,'ITEM1'],[5,3,'3'],[5,4,'정상']);assert.equal(api.convert(stocked.book,stocked.plan).inventory[0].quantity,3);
+stocked.plan.objects[0].locationPlan.cells[0].code='UNMATCHED';assert.equal(api.convert(stocked.book,stocked.plan).inventory.length,0);
+const original=require('../data/wms-reference-seed.json'),raw=JSON.stringify(original),up=window.WmsFloorPlanReferenceStore.upgrade(original);assert.equal(original.sheets.length,13);assert.equal(JSON.stringify(original),raw);assert.equal(up.sheets.length,14);assert.equal(JSON.stringify(window.WmsFloorPlanReferenceStore.upgrade(up)),JSON.stringify(up));assert.ok(up.sheets.find(s=>s.name==='로케이션 마스터').cells.some(c=>c[2]==='랙열번호'));
+const scanner=window.WmsBarcodeTunnel.createPassDetector([{x:5,z:5,angle:Math.PI/4,length:1,width:.6}],2.2);
+assert.equal(scanner([{id:'C',x:4,y:2.2,z:4}]).length,0);assert.equal(scanner([{id:'C',x:6,y:2.2,z:6}]).length,1);assert.equal(scanner([{id:'C',x:7,y:2.2,z:7}]).length,0);
+console.log('Drawing 3D: exact rotated margins/gaps, legacy independence, location joins, directional branches, equipment mapping, additive upgrade and rotated scanner passed.');

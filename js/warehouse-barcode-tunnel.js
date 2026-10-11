@@ -48,6 +48,25 @@
                 seen.add(p.id);
                 const old = previous.get(p.id);
                 layout.forEach((r, i) => {
+                    if (Number.isFinite(r.angle)) {
+                        const local = q => {const dx=q.x-r.x,dz=q.z-r.z,c=Math.cos(r.angle),s=Math.sin(r.angle);return {x:dx*c+dz*s,z:-dx*s+dz*c};};
+                        const now=local(p),before=old&&local(old);
+                        const atHeight=Math.abs(p.y-conveyorY)<.18;
+                        const within=atHeight&&Math.abs(now.x)<=r.length/2&&Math.abs(now.z)<=r.width/2;
+                        let crossed=false;
+                        if(before&&atHeight&&Math.abs(old.y-conveyorY)<.18){
+                            let lo=0,hi=1;
+                            for(const [axis,half] of [['x',r.length/2],['z',r.width/2]]){
+                                const delta=now[axis]-before[axis];
+                                if(Math.abs(delta)<1e-9){if(Math.abs(before[axis])>half){lo=1;hi=0;break;}}
+                                else {const a=(-half-before[axis])/delta,b=(half-before[axis])/delta;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));}
+                            }
+                            crossed=lo<=hi;
+                        }
+                        if((within||crossed)&&!inside[i].has(p.id))entries.push({index:i,cargoId:p.id});
+                        if(within)inside[i].add(p.id);else inside[i].delete(p.id);
+                        return;
+                    }
                     const atHeight = Math.abs(p.y - conveyorY) < 0.18;
                     const within = atHeight && p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
                     // A fast, straight crossing between frames must also count once.
@@ -98,7 +117,7 @@
         };
         const entries = layout.map(r => {
             const tunnel = new THREE.Group(); tunnel.name = r.code;
-            tunnel.position.set(r.x, floorY + 1, r.z); tunnel.rotation.y = r.axis === 'x' ? Math.PI / 2 : 0;
+            tunnel.position.set(r.x, floorY + 1, r.z); tunnel.rotation.y = r.yaw ?? (r.axis === 'x' ? Math.PI / 2 : 0);
             tunnel.userData = { kind: 'barcode-tunnel', source: 'floorPlan-BT', code: r.code, width: r.width, length: r.length };
             group.add(tunnel);
             const w = r.width, d = r.length, h = Math.max(1.2, w * 0.95), t = Math.min(0.04, w * 0.025);
@@ -131,8 +150,15 @@
                 scans: 0, cargoId: '', history: [], communicationStatus: 'ONLINE', equipmentStatus: '대기'
             };
         });
-        const detect = createPassDetector(layout, floorY + 1);
+        let detect = createPassDetector(layout, floorY + 1);
         return { group, resources, entries,
+            reset() {
+                detect = createPassDetector(layout, floorY + 1);
+                entries.forEach(e => {
+                    e.scans=0;e.cargoId='';e.history=[];e.until=-Infinity;e.started=-Infinity;e.equipmentStatus='대기';
+                    e.glow.visible=false;e.light.intensity=0;e.tunnel.userData.scanning=false;e.tunnel.userData.scanCount=0;
+                });
+            },
             update(timestamp, palletGroups, resolveCargoMetadata) {
                 const cargo = palletGroups.filter(p => p.visible).map(p => ({ id: p.userData.jobCode, ...p.position }));
                 detect(cargo).forEach(event => {

@@ -52,10 +52,11 @@
     });
     return data;
   }
-  async function load(signal) {
+  async function load(signal, plan) {
     const saved = await window.WmsFloorPlanReferenceStore.load();
     if (signal?.aborted) throw new DOMException('요청이 취소되었습니다.', 'AbortError');
-    return convert(saved.book);
+    if (!plan) throw Error('평면도 에디터에서 도면을 만들거나 불러오세요.');
+    return window.WmsWarehouseDrawing.convert(saved.book, plan);
   }
-  window.WmsWarehouseLocalData = { load, convert, sheetCsv };
+  window.WmsWarehouseLocalData = { load, convert, sheetCsv, records };
 })();

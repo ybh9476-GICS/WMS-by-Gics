@@ -1,0 +1,9 @@
+const fs=require('fs'),path=require('path');
+const dir='C:/Users/YCS/AppData/Local/Packages/OpenAI.Codex_2p2nqsd0c76g0/LocalCache/Roaming/Codex/web/Codex/Default/Partitions/codex-browser-app/Local Storage/leveldb';
+const latest=new Map();
+function varint(b,p){let n=0,s=0,c;do{c=b[p.i++];n+=(c&127)*2**s;s+=7;}while(c&128);return n;}
+function batch(b){const seq=Number(b.readBigUInt64LE(0)),count=b.readUInt32LE(8),p={i:12};for(let i=0;i<count;i++){const tag=b[p.i++],len=varint(b,p),key=b.subarray(p.i,p.i+=len);let value=null;if(tag===1){const n=varint(b,p);value=b.subarray(p.i,p.i+=n);}const zero=key.indexOf(0);if(key.subarray(0,zero).toString()!=='_http://127.0.0.1:4174')continue;const raw=key.subarray(zero+1),name=raw.subarray(1).toString(raw[0]===0?'utf16le':'latin1');if(!name.startsWith('gics-standalone-'))continue;if((latest.get(name)?.seq??-1)<seq+i)latest.set(name,{seq:seq+i,value:value?value.subarray(1).toString(value[0]===0?'utf16le':'latin1'):null});}}
+for(const file of fs.readdirSync(dir).filter(n=>n.endsWith('.log'))){const b=fs.readFileSync(path.join(dir,file));let parts=[];for(let pos=0;pos+7<=b.length;){if(32768-pos%32768<7){pos+=32768-pos%32768;continue;}const len=b.readUInt16LE(pos+4),type=b[pos+6];pos+=7;if(!len&&!type)continue;const data=b.subarray(pos,pos+=len);if(type===1)batch(data);else if(type===2)parts=[data];else if(type===3)parts.push(data);else if(type===4){parts.push(data);batch(Buffer.concat(parts));parts=[];}}}
+const result={};for(const [name,v]of latest)if(v.value!==null)result[name]=v.value;
+fs.writeFileSync('output/current-wms-storage.json',JSON.stringify(result,null,2));
+console.log(Object.entries(result).map(([key,v])=>({key,bytes:v.length,summary:key.includes('tabs-v1')?JSON.parse(v).documents?.map(d=>({id:d.id,name:d.plan?.name,objects:d.plan?.objects?.length})):undefined})));

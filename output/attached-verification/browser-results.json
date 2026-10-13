@@ -1,0 +1,387 @@
+{
+  "blocked": {
+    "elapsed": "0.000",
+    "inventory": "{\"occupied\":0,\"free\":640,\"quantity\":0}",
+    "jobs": [
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-001",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-002",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-003",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "이동",
+        "done": false,
+        "id": "TR-004",
+        "route": "",
+        "stage": 0,
+        "status": "TR-004: 운영 경로 (미지정)의 코드·사용 여부 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-005",
+        "route": "",
+        "stage": 0,
+        "status": "TR-005: 운영 경로 (미지정)의 코드·사용 여부 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-006",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-007",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-008",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-009",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-010",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-011",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-012",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-013",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-014",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-015",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-016",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-017",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-018",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-019",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-020",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-021",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-022",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-023",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-024",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-025",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-026",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-027",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-028",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-029",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "출고",
+        "done": false,
+        "id": "TR-030",
+        "route": "OUT01",
+        "stage": 0,
+        "status": "AMR-001: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-031",
+        "route": "IN01",
+        "stage": 0,
+        "status": "AMR-002: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      },
+      {
+        "cargoOwner": "",
+        "cargoPosition": null,
+        "direction": "입고",
+        "done": false,
+        "id": "TR-032",
+        "route": "IN02",
+        "stage": 0,
+        "status": "AMR-003: 3D 연결 시트의 설비 코드·평면도 AMR 배치 확인",
+        "total": 0
+      }
+    ],
+    "status": "blocked"
+  },
+  "routesRunning": {
+    "actors": "[{\"code\":\"SH01\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":8.483300000000057},\"speed\":1},{\"code\":\"FA01\",\"state\":\"경로 주행\",\"position\":{\"x\":17.516699999999986,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"SH02\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.483300000000057},\"speed\":1},{\"code\":\"SH03\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.483300000000057},\"speed\":1},{\"code\":\"FA02\",\"state\":\"경로 주행\",\"position\":{\"x\":17.516699999999986,\"y\":1.2,\"z\":9.5},\"speed\":1},{\"code\":\"FA03\",\"state\":\"경로 주행\",\"position\":{\"x\":17.516699999999986,\"y\":1.2,\"z\":14.5},\"speed\":1}]",
+    "elapsed": "3.017",
+    "status": "running"
+  },
+  "routesPaused": {
+    "actors": "[{\"code\":\"SH01\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":8.433400000000049},\"speed\":1},{\"code\":\"FA01\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"SH02\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.433400000000049},\"speed\":1},{\"code\":\"SH03\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.433400000000049},\"speed\":1},{\"code\":\"FA02\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":9.5},\"speed\":1},{\"code\":\"FA03\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":14.5},\"speed\":1}]",
+    "elapsed": "3.067",
+    "status": "paused"
+  },
+  "pausedIn2D": {
+    "actors": "[{\"code\":\"SH01\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":8.433400000000049},\"speed\":1},{\"code\":\"FA01\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"SH02\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.433400000000049},\"speed\":1},{\"code\":\"SH03\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.433400000000049},\"speed\":1},{\"code\":\"FA02\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":9.5},\"speed\":1},{\"code\":\"FA03\",\"state\":\"경로 주행\",\"position\":{\"x\":17.566599999999998,\"y\":1.2,\"z\":14.5},\"speed\":1}]",
+    "elapsed": "3.067",
+    "status": "paused"
+  },
+  "resumed": {
+    "actors": "[{\"code\":\"SH01\",\"state\":\"경로 주행\",\"position\":{\"x\":4.8,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"FA01\",\"state\":\"경로 주행\",\"position\":{\"x\":20.699999999999996,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"SH02\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":5.7000000000000925},\"speed\":1},{\"code\":\"SH03\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":5.7000000000000925},\"speed\":1},{\"code\":\"FA02\",\"state\":\"경로 주행\",\"position\":{\"x\":20.699999999999996,\"y\":1.2,\"z\":9.5},\"speed\":1},{\"code\":\"FA03\",\"state\":\"경로 주행\",\"position\":{\"x\":20.699999999999996,\"y\":1.2,\"z\":14.5},\"speed\":1}]",
+    "elapsed": "8.800",
+    "status": "running"
+  },
+  "stopped": {
+    "actors": "[{\"code\":\"SH01\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":11.5},\"speed\":1},{\"code\":\"FA01\",\"state\":\"경로 주행\",\"position\":{\"x\":14.5,\"y\":1.2,\"z\":4.5},\"speed\":1},{\"code\":\"SH02\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":14.5},\"speed\":1},{\"code\":\"SH03\",\"state\":\"경로 주행\",\"position\":{\"x\":3,\"y\":1.2,\"z\":14.5},\"speed\":1},{\"code\":\"FA02\",\"state\":\"경로 주행\",\"position\":{\"x\":14.5,\"y\":1.2,\"z\":9.5},\"speed\":1},{\"code\":\"FA03\",\"state\":\"경로 주행\",\"position\":{\"x\":14.5,\"y\":1.2,\"z\":14.5},\"speed\":1}]",
+    "elapsed": "0.000",
+    "status": "stopped"
+  },
+  "consoleErrors": []
+}

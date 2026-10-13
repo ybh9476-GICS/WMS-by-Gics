@@ -1,0 +1,39 @@
+{
+  "target": "file:///D:/GICS_Projects/WMS-by-Gics/index.html",
+  "offline": true,
+  "checks": [
+    "Active drawing renders with 6 racks and the bundled Three.js library",
+    "Simulation pause/resume, camera projection/views, drag/zoom, selection and search respond",
+    "Reload retains navigation; reference edits feed 3D while drawing edits and undo history survive round trips",
+    "Repeated transitions and compact layout work with no external requests, original storage keys or JavaScript errors"
+  ],
+  "errors": [],
+  "storageKeys": [
+    "gics-standalone-reference-data-v1",
+    "gics-standalone-drawing-v2:local-editor:tabs-v1"
+  ],
+  "requests": [
+    "file:///D:/GICS_Projects/WMS-by-Gics/index.html",
+    "file:///D:/GICS_Projects/WMS-by-Gics/css/standalone.css",
+    "file:///D:/GICS_Projects/WMS-by-Gics/css/floor-plan-editor.css",
+    "file:///D:/GICS_Projects/WMS-by-Gics/css/warehouse-3d.css",
+    "file:///D:/GICS_Projects/WMS-by-Gics/data/wms-reference-seed.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-model.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-reference-model.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-reference-store.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-reference-file.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-reference-data.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-rack-master.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/floor-plan-editor.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-local-data.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-page.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/standalone.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/vendor/three.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-operations.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-operation-scene.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-barcode-tunnel.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-drawing.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-drawing-scene.js",
+    "file:///D:/GICS_Projects/WMS-by-Gics/js/warehouse-3d.js"
+  ]
+}

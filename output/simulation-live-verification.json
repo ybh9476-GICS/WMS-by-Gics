@@ -1,0 +1,35 @@
+{
+  "pauseFrozen": true,
+  "resumeShared": true,
+  "completedOutbound": {
+    "id": "TR-001",
+    "route": "OUT01",
+    "direction": "출고",
+    "status": "완료",
+    "stage": 17,
+    "total": 17,
+    "done": true,
+    "cargoOwner": "truck:D03",
+    "cargoPosition": {
+      "x": 32.5,
+      "y": 2.2,
+      "z": 32
+    }
+  },
+  "nextInbound": {
+    "id": "TR-002",
+    "route": "IN01",
+    "direction": "입고",
+    "status": "컨베이어 운반",
+    "stage": 0,
+    "total": 17,
+    "done": false,
+    "cargoOwner": "conveyor",
+    "cargoPosition": {
+      "x": 7.5,
+      "y": 2.2,
+      "z": 24.525099999999973
+    }
+  },
+  "resetElapsed": "0.000"
+}

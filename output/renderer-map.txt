@@ -1,0 +1,227 @@
+1:(function () {
+5:    function loadThree() {
+9:    function loadOperations() { return Promise.resolve(); }
+10:    function loadBarcodeTunnels() { return Promise.resolve(); }
+14:        floorPlan: { sheetName: '평면도', xAxisRange: 'A3:3', yAxisRange: 'A3:A', headers: ['Y\\X'] },
+15:        rackTypes: { sheetName: '랙타입 마스터', range: 'A4:H', headers: ['랙타입코드', '랙타입명', '베이폭(m)', '깊이(m)', '전체높이(m)', '단수', '단당높이(m)'] },
+24:    function parseCsv(csvText) {
+57:    function csvToRecords(csvText, requiredHeaders, sheetName) {
+67:    function columnNumberToName(columnNumber) {
+79:    function getSequentialAxisLength(values, axisName) {
+98:    function getFloorPlanAxisRange(xAxisCsv, yAxisCsv) {
+114:    function toNumber(value, fallback = 0) {
+121:    function isEnabled(value) {
+125:    function convertGoogleSheetCsv(csvByKey, options = {}) {
+132:        const floorPlanCellSize = Math.max(1, toNumber(options.floorPlanCellSizeMeters, 0.5) * 1000);
+134:        const floorPlanByRack = new Map();
+135:        const floorPlanCells = [];
+136:        const passageCells = [];
+144:        records.floorPlan.forEach((row) => {
+152:                floorPlanCells.push({ x, y, value: cellValue });
+154:                if (normalizedValue === 'T') passageCells.push({ x, y });
+182:                const placement = floorPlanByRack.get(rackCode) || { minX: x, maxX: x, minY: y, maxY: y, cellCount: 0 };
+188:                floorPlanByRack.set(rackCode, placement);
+201:        const rackTypes = records.rackTypes
+213:        const rackTypeByCode = new Map(rackTypes.map((type) => [type.code, type]));
+215:        let floorPlanAppliedCount = 0;
+217:        const usesFloorPlan = floorPlanByRack.size > 0;
+219:            ? enabledRackRows.map((row) => String(row['랙코드']).trim()).filter((code) => !floorPlanByRack.has(code))
+222:            .filter((row) => !usesFloorPlan || floorPlanByRack.has(String(row['랙코드']).trim()))
+225:                const placement = floorPlanByRack.get(code);
+231:                let floorPlan = null;
+235:                    const planLength = (direction === 'vertical' ? rows : columns) * floorPlanCellSize;
+236:                    const planWidth = (direction === 'vertical' ? columns : rows) * floorPlanCellSize;
+246:                    floorPlan = {
+270:                    floorPlanAppliedCount += 1;
+272:                const xPlanGap = floorPlan ? (direction === 'vertical' ? floorPlan.remainingWidth : floorPlan.remainingLength) : 0;
+273:                const yPlanGap = floorPlan ? (direction === 'vertical' ? floorPlan.remainingLength : floorPlan.remainingWidth) : 0;
+278:                    startX: placement ? (placement.minX - 1) * floorPlanCellSize + Math.max(0, xPlanGap) / 2 : 0,
+279:                    startY: placement ? (placement.minY - 1) * floorPlanCellSize + Math.max(0, yPlanGap) / 2 : 0,
+283:                    layoutSource: placement ? 'floorPlan' : 'rackPlacement',
+284:                    floorPlan
+365:        const configuredFloorPlanX = toNumber(options.floorPlanAxis?.xCount);
+366:        const configuredFloorPlanY = toNumber(options.floorPlanAxis?.yCount);
+367:        const floorPlanMaxX = configuredFloorPlanX > 0 ? configuredFloorPlanX : Math.max(0, ...floorPlanCells.map((cell) => cell.x));
+368:        const floorPlanMaxY = configuredFloorPlanY > 0 ? configuredFloorPlanY : Math.max(0, ...floorPlanCells.map((cell) => cell.y));
+369:        const floorWidth = floorPlanMaxX * floorPlanCellSize;
+370:        const floorDepth = floorPlanMaxY * floorPlanCellSize;
+371:        const warehouseGapCount = Math.max(0, floorPlanMaxX * floorPlanMaxY - floorPlanCells.length);
+379:                floorPlanCellSize,
+380:                warehouseCellCount: floorPlanCells.length,
+382:                passageCells: passageCells.map((cell) => ({
+383:                    x: (cell.x - 1) * floorPlanCellSize,
+384:                    y: (cell.y - 1) * floorPlanCellSize
+387:                    x: (cell.x - 1) * floorPlanCellSize,
+388:                    y: (cell.y - 1) * floorPlanCellSize
+391:                    x: (cell.x - 1) * floorPlanCellSize,
+392:                    y: (cell.y - 1) * floorPlanCellSize
+395:                    x: (cell.x - 1) * floorPlanCellSize,
+396:                    y: (cell.y - 1) * floorPlanCellSize
+399:                    x: (cell.x - 1) * floorPlanCellSize,
+400:                    y: (cell.y - 1) * floorPlanCellSize,
+404:                    x: (cell.x - 1) * floorPlanCellSize,
+405:                    y: (cell.y - 1) * floorPlanCellSize,
+409:                    x: (cell.x - 1) * floorPlanCellSize,
+410:                    y: (cell.y - 1) * floorPlanCellSize,
+415:                floorPlanRange: options.floorPlanAxis?.range || '',
+416:                floorPlanAppliedCount,
+422:            zones, rackTypes, racks, locations, items, inventory,
+432:    function googleTableToCsv(table) {
+445:    function parseEquipmentMaster(csv) {
+463:    function parseEquipmentStatus(csv) {
+491:    function validateWarehouseData(data) {
+494:        ['zones', 'rackTypes', 'racks', 'items', 'inventory'].forEach((key) => {
+499:        const rackTypeCodes = new Set(data.rackTypes.map((type) => type.code));
+517:    function escapeHtml(value) {
+535:    function getCartonStackLayout(width, height, depth) {
+547:    function setUnitLoadStoredAppearance(load, stored, color) {
+558:    function getSlotVisualKey(slot, mode = 'utilization') {
+572:    function createShell(container) {
+795:    function setupPanelResizing(shell, signal) {
+886:    function showError(shell, messages) {
+891:    function createLabelSprite(THREE, text, { sizeScale = 1, fontWeight = 700, border = true } = {}) {
+946:    function createTruckInfoBillboardSprite(THREE, info = {}) {
+965:        const operationColor = workType === '출고' ? '#fb923c' : '#22d3ee';
+980:            context.fillStyle = operationColor;
+1003:                context.fillStyle = index === 2 ? (progressStatus.endsWith('완료') ? '#4ade80' : operationColor) : '#ffffff';
+1046:    function getTruckInvoiceHtml(info, dockCode, warehouseName, order = {}, viewedAt = new Date()) {
+1062:    function createLevelBadgeSprite(THREE, level) {
+1120:    function getAmrInspectorHtml(amr) {
+1134:    function getTransportHistoryHtml(equipment) {
+1142:    function getHistoryTimeHtml(value) {
+1146:    function formatLocalDateTime(value) {
+1153:    function getHistoryStatusHtml(status) {
+1160:    function getScanHistoryHtml(entry) {
+1165:    function getAmrEquipmentStatusColor(status) {
+1175:    function createAmrLabelSprite(THREE, { name, communicationStatus, equipmentStatus, parentScale = 1 }) {
+1264:    function calculateZoneFloorBounds(racks, rackTypes, clearance = 500, boundaryWidth = 0) {
+1265:        const typeByCode = new Map((rackTypes || []).map((type) => [type.code, type]));
+1296:    function getWarehouseStructureOcclusion(cameraPosition, floorWidth, floorDepth, warehouseHeight) {
+1316:    function calculateLoadingDockLayouts(
+1318:        rackTypes,
+1323:        floorPlanCellSize = 500
+1356:        const size = Math.max(1, toNumber(floorPlanCellSize, 500));
+1373:                return buildLayout(bounds, ['front', 'back', 'left', 'right'], 'floorPlanDock', dockCode, cellsForDock.length);
+1378:        const type = (Array.isArray(rackTypes) ? rackTypes : []).find((item) => item?.code === rack?.rackTypeCode);
+1391:    function calculateLoadingDockLayout(...args) {
+1395:    function calculateLoadingYardLayout(loadingDockLayout, floorWidth, floorDepth, yardDepth = 15000, shoulder = 2000) {
+1431:    function calculateTruckYardPlacement(dock, yard, footprint) {
+1467:    function buildPassageBoundarySegments(passageCells, cellSize = 500, boundaryWidth = 100, boundaryInset = 100) {
+1473:        (Array.isArray(passageCells) ? passageCells : []).forEach((cell) => {
+1508:    function buildConveyorLayout(cells, cellSize = 500) {
+1622:    function createConveyorModel(THREE, layout, floorElevation) {
+1626:        group.userData = { kind: 'conveyor', source: 'floorPlan-CV', height: 1, motion: 'static' };
+1695:                transform.rotation.set(part.rx, 0, part.rz);
+1709:    function groupConnectedFloorCells(cells, cellSize = 500) {
+1752:    function calculateAmrPassageClearanceMm(passageCells, cellSize = 500, requestedClearance = 1950) {
+1755:        const corridorWidths = groupConnectedFloorCells(passageCells, size)
+1763:    function buildAmrCorridorAssignments(graph, stations, equipmentCount) {
+1813:    function buildShuttleRailLayout(passageCells, stationCells, cellSize = 500) {
+1816:        (Array.isArray(passageCells) ? passageCells : []).forEach((cell) => {
+1907:    function calculateShuttleFootprintMm(stations, cellSize = 500) {
+1918:    function calculateShuttleLoadDimensions(rackSlots, floorPlanCellSize = 500) {
+1932:        const cellSizeMeters = Math.max(0.001, toNumber(floorPlanCellSize, 500) / 1000);
+1937:            source: 'floorPlan-cell-fallback'
+1941:    function calculateLiftFrameDimensions(width, depth, postThickness = 0.09) {
+1954:    function buildOrthogonalConnectorPath(start, end) {
+1961:    function calculateShuttleLevelElevations(racks, rackTypes) {
+1962:        const typeByCode = new Map((Array.isArray(rackTypes) ? rackTypes : []).map((type) => [type?.code, type]));
+1977:    function buildShuttleFrameLayout(passageCells, levelElevations, cellSize = 500) {
+1980:        (Array.isArray(passageCells) ? passageCells : []).forEach((cell) => {
+2003:    function buildPassageNavigationGraph(passageCells, cellSize = 500, vehicleDiameter = 1600) {
+2013:        (Array.isArray(passageCells) ? passageCells : []).forEach((cell) => {
+2074:    function findPassagePath(graph, startKey, goalKey) {
+2145:    function findNearestPassageNode(graph, x, y, maxDistance = 1500) {
+2168:    function getForkTargetHeight(slot, forkThickness = 0.055) {
+2175:    function getForkliftTaskSequence(mode) {
+2179:    function calculateRackFocusView(bounds, options = {}) {
+2239:    function getRackDepthFramePositions(rackRowCount, depthCount, rackDepth) {
+2246:    function startWarehouseScene(THREE, shell, data, signal) {
+2252:            data.racks, data.rackTypes,
+2257:            data.meta?.floorPlanCellSize || 500
+2285:        const maximumRackHeight = Math.max(0, ...data.rackTypes.map((type) => mm(type.height)));
+2313:        const addReflectionPanel = (color, position, rotation, size) => {
+2316:            panel.rotation.set(...rotation);
+2425:        const addEnclosurePlane = (name, size, position, rotation, material) => {
+2430:            mesh.rotation.set(...rotation);
+2453:        Object.entries(wallDefinitions).forEach(([side, [name, size, position, rotation]]) => {
+2454:            if (side !== openWallSide) addEnclosurePlane(name, size, position, rotation, wallMaterial);
+2532:                panel.rotation.x = Math.PI / 2;
+2598:        shell.viewport.dataset.warehouseBufferSource = 'floorPlan-B';
+2602:        shell.viewport.dataset.warehouseConveyorSource = 'floorPlan-CV';
+2673:            const addPart = (name, geometry, material, position, rotation = null) => {
+2677:                if (rotation) mesh.rotation.set(...rotation);
+2787:            truck.rotation.y = placement.yaw;
+2803:        shell.viewport.dataset.warehouseTruckInfoLayout = 'operation-vehicle-company-schedule-progress-bottom-invoice';
+2833:        const passageCellSize = mm(data.meta?.floorPlanCellSize || 500);
+2834:        const passageCells = Array.isArray(data.meta?.passageCells) ? data.meta.passageCells : [];
+2839:            passageCells,
+2840:            data.meta?.floorPlanCellSize || 500,
+2866:            data.meta?.floorPlanCellSize || 500,
+2881:            conveyorBoundaries.userData = { kind: 'conveyor-track-lines', source: 'floorPlan', code: 'CV' };
+2893:        const conveyorLayout = buildConveyorLayout(conveyorCells, data.meta?.floorPlanCellSize || 500);
+2896:        const barcodeTunnelLayout = window.WmsBarcodeTunnel.buildLayout(data.meta?.barcodeTunnelCells, conveyorCells, data.meta?.floorPlanCellSize);
+2904:        const scanRouteByCode = new Map((data.operationRoutes || []).map(route => [route.code, route]));
+2956:            data.meta?.floorPlanCellSize || 500,
+2971:            dockBoundaries.userData = { kind: 'loading-dock-lines', source: 'floorPlan', code: 'D' };
+2985:            data.meta?.floorPlanCellSize || 500,
+3000:            bufferBoundaries.userData = { kind: 'handoff-buffer-lines', source: 'floorPlan', code: 'B' };
+3016:            const centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length + (data.meta?.floorPlanCellSize || 500) / 2;
+3017:            const centerZ = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length + (data.meta?.floorPlanCellSize || 500) / 2;
+3031:            data.meta?.floorPlanCellSize || 500
+3035:            data.meta?.floorPlanCellSize || 500
+3040:            data.meta?.floorPlanCellSize || 500,
+3059:            group.userData = { kind: 'inout-station', code: station.code, source: 'floorPlan-S' };
+3097:            passageCells,
+3098:            data.meta?.floorPlanCellSize || 500,
+3102:            passageCells,
+3103:            data.meta?.floorPlanCellSize || 500,
+3146:            shadow.rotation.x = -Math.PI / 2;
+3206:            stop.rotation.x = Math.PI / 2;
+3209:                drive.rotation.z = Math.PI / 2;
+3212:                roller.rotation.z = Math.PI / 2;
+3380:        const rackTypeByCode = new Map(data.rackTypes.map((type) => [type.code, type]));
+3849:                group.rotation.y = -Math.PI / 2;
+3877:        const shuttleLevelElevations = calculateShuttleLevelElevations(data.racks, data.rackTypes);
+3881:            data.meta?.floorPlanCellSize || 500
+3885:        shuttleFrameGroup.userData = { kind: 'shuttle-frames', source: 'floorPlan-GR', coverage: 'full-cell-area' };
+3889:            decks.userData = { kind: 'shuttle-frame-decks', source: 'floorPlan-GR' };
+3892:            const rotation = new THREE.Quaternion();
+3902:                matrix.compose(position, rotation, scale);
+3916:            frameEdges.userData = { kind: 'shuttle-frame-edges', source: 'floorPlan-GR' };
+3919:            const rotation = new THREE.Quaternion();
+3924:                matrix.compose(position, rotation, scale);
+3948:        calculateZoneFloorBounds(data.racks, data.rackTypes, 500).forEach((bounds) => {
+3971:            data.meta?.floorPlanCellSize || 500,
+3990:                    (data.meta?.floorPlanCellSize || 500) * 2
+4066:            platform.rotation.set(0, 0, 0);
+4086:        function createTransportCartonStack(width, height, depth) {
+4127:                transform.position.set(p.x, p.y, p.z); transform.rotation.set(0, 0, 0); transform.scale.set(1, 1, 1); transform.updateMatrix(); bodies.setMatrixAt(index, transform.matrix);
+4130:                    transform.position.set(x, p.y, z); transform.rotation.set(0, yaw, 0); transform.scale.set(faceWidth, h, 1); transform.updateMatrix(); faces.setMatrixAt(faceIndex++, transform.matrix);
+4132:                transform.position.set(p.x, p.y + h / 2 + 0.001, p.z); transform.rotation.set(-Math.PI / 2, 0, 0); transform.scale.set(w, d, 1); transform.updateMatrix(); tops.setMatrixAt(index, transform.matrix);
+4157:                wheel.rotation.z = Math.PI / 2;
+4290:                data.meta?.floorPlanCellSize || 500
+4362:            ? 'rack-slot' : 'floorPlan-cell-fallback';
+4368:        shell.viewport.dataset.floorPlanCellSize = String(passageCellSize);
+4373:        shell.viewport.dataset.shuttleSizingSource = 'floorPlan-S';
+4466:                || calculateShuttleLoadDimensions([], data.meta?.floorPlanCellSize || 500);
+4585:            amr.group.userData.operationState = state;
+4663:        if (!Array.isArray(data.operationRoutes)) amrFleet.forEach((amr, index) => assignForkliftTask(amr, performance.now() + index * 420));
+4733:                Math.sin(goal - amr.group.rotation.y),
+4734:                Math.cos(goal - amr.group.rotation.y)
+4736:            amr.group.rotation.y += Math.max(-deltaSeconds * speed, Math.min(deltaSeconds * speed, offset));
+4840:            if (Math.hypot(dx, dz) > 0.001) shuttle.group.rotation.y = Math.atan2(dx, dz);
+4914:                shuttle.group.userData.operationState = shuttle.state;
+4919:        const operations = Array.isArray(data.operationRoutes) ? window.createWarehouseOperationScene({
+4998:            const amrIsActive = operations ? operations.update(frameTime) : updateAmrFleet(frameTime);
+5001:                const status = operations?.truckProgress(truck.userData.dockCode, label.userData.workType);
+5007:            const shuttleIsActive = operations ? false : updateShuttleFleet(frameTime);
+5010:                scene.children.filter(object => object.name.startsWith('operation-pallet-')),
+5418:        function showBarcodeTunnelSelection(entry) {
+5433:        function updateHistoryDialog() {
+5508:        function updateTruckInvoiceButtons() {
+5735:        // Manual rotation releases alignment; panning and zooming do not.
+6075:                const plan = selection.rack.floorPlan;
+6079:                shell.inspector.innerHTML = `<h5>${escapeHtml(selection.rack.code)}</h5><dl><dt>구역</dt><dd>${escapeHtml(selection.rack.zoneCode)} · ${escapeHtml(selection.zone?.name || '')}</dd><dt>랙타입</dt><dd>${escapeHtml(selection.type.name)}</dd><dt>배치 기준</dt><dd>${selection.rack.layoutSource === 'floorPlan' ? '평면도' : '랙배치'}</dd><dt>구성</dt><dd>${selection.rack.rackRowCount}랙열 · ${selection.rack.bayCount}베이</dd><dt>단수·깊이</dt><dd>${selection.type.levels}단 · 깊이 ${Math.max(1, Number(selection.type.depthCount) || 1)}</dd><dt>실제 규격</dt><dd>${(selection.type.bayWidth * selection.rack.bayCount / 1000).toFixed(2)}m × ${(selection.type.depth * selection.rack.rackRowCount / 1000).toFixed(2)}m × ${(selection.type.height / 1000).toFixed(2)}m</dd>${planInfo}<dt>등록 재고</dt><dd>${(inventoryByRack.get(selection.rack.code) || []).length}개 로케이션</dd></dl>`;
+6252:    async function mount(container, options = {}) {
+6321:    function disposeWithin(root) {

@@ -1,0 +1,6 @@
+System.Management.Automation.PSSecurityException: 이 시스템에서 스크립트를 실행할 수 없으므로 D:\GICS_Projects\WMS-by-Gics\output\repair-git-owner.ps1 파일을 로드할 수 없습니다. 자세한 내용은 about_Execution_Policies(https://go.microsoft.com/fwlink/?LinkID=135170)를 참조하십시오. ---> System.UnauthorizedAccessException: 이 시스템에서 스크립트를 실행할 수 없으므로 D:\GICS_Projects\WMS-by-Gics\output\repair-git-owner.ps1 파일을 로드할 수 없습니다. 자세한 내용은 about_Execution_Policies(https://go.microsoft.com/fwlink/?LinkID=135170)를 참조하십시오.
+   --- 내부 예외 스택 추적의 끝 ---
+   위치: System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)
+   위치: System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)
+   위치: System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)
+   위치: System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)

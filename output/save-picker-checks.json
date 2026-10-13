@@ -1,0 +1,12 @@
+{
+  "url": "file:///D:/GICS_Projects/WMS-by-Gics/index.html",
+  "checks": [
+    "gics: repeated saves ask for a file each time; cancellation writes nothing",
+    "tbl: repeated saves ask for a file each time; cancellation writes nothing",
+    "xlsx: repeated saves ask for a file each time; cancellation writes nothing",
+    "Unsupported browsers show instructions without downloading, writing or reporting success"
+  ],
+  "errors": [],
+  "downloads": [],
+  "nativePicker": "Mocked in this automated test"
+}

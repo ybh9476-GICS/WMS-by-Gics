@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),crypto=require('crypto');
+const M=require('../../js/floor-plan-model'),R=require('../../js/floor-plan-reference-model'),F=require('../../js/floor-plan-reference-file');
+const paths=['C:/Users/YCS/Desktop/floor-plan.gics','C:/Users/YCS/Desktop/새 기준정보.tbl'];
+const raw=paths.map(p=>fs.readFileSync(p));
+const plan=M.readFile(JSON.parse(raw[0].toString('utf8'))),book=F.parseTbl(raw[1].toString('utf8'));
+const win={WmsFloorPlanModel:M,WmsFloorPlanReferenceModel:R,dispatchEvent(){}};
+for(const f of ['warehouse-operations','warehouse-3d','warehouse-local-data','warehouse-drawing'])vm.runInNewContext(fs.readFileSync('js/'+f+'.js','utf8'),{window:win,console,Event:class{}});
+const data=win.WmsWarehouseDrawing.convert(book,plan);
+const result={files:paths.map((path,i)=>({path,sha256:crypto.createHash('sha256').update(raw[i]).digest('hex')})),issues:M.validate(plan),warnings:data.meta.warnings,objects:plan.objects.length,racks:data.racks.length,locations:data.locations.length,inventory:data.inventory.length,quantity:data.inventory.reduce((s,x)=>s+x.quantity,0),activeOrders:data.workOrders.filter(w=>!['완료','취소'].includes(w.status)).map(w=>({code:w.code,route:w.routeCode,direction:w.direction,quantity:w.quantity})),actors:data.meta.actors.map(a=>({id:a.id,code:a.code,route:a.routeId,enabled:a.master?.enabled,status:a.status?.communicationStatus}))};
+fs.writeFileSync('output/attached-verification/input.json',JSON.stringify({plan,book}));
+fs.writeFileSync('output/attached-verification/static.json',JSON.stringify(result,null,2));
+console.log(JSON.stringify(result));

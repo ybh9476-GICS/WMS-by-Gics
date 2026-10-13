@@ -1,0 +1,154 @@
+{
+  "unusedNarrowConveyor": {
+    "state": {
+      "mode": "orders",
+      "paused": false,
+      "elapsed": 0.4832999999999999,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 3,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "셔틀 배치·GR 연결·적재 공간·로케이션 용량 확인",
+          "done": false,
+          "cargo": null
+        }
+      ]
+    }
+  },
+  "threeDPause": {
+    "before": {
+      "mode": "orders",
+      "paused": true,
+      "elapsed": 0.7833000000000003,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 3,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "셔틀 배치·GR 연결·적재 공간·로케이션 용량 확인",
+          "done": false,
+          "cargo": null
+        }
+      ]
+    },
+    "after": {
+      "mode": "orders",
+      "paused": true,
+      "elapsed": 0.7833000000000003,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 3,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "셔틀 배치·GR 연결·적재 공간·로케이션 용량 확인",
+          "done": false,
+          "cargo": null
+        }
+      ]
+    }
+  },
+  "editWhilePaused": {
+    "state": null,
+    "button": "재생"
+  }
+}

@@ -1,0 +1,470 @@
+{
+  "normalPause": {
+    "before": {
+      "mode": "routes",
+      "paused": true,
+      "elapsed": 0.36668599999999996,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 6.666859999999999,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 10.5,
+            "y": 1.2,
+            "z": 4.83314
+          },
+          "angle": -90,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    },
+    "after": {
+      "mode": "routes",
+      "paused": true,
+      "elapsed": 0.36668599999999996,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 6.666859999999999,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 10.5,
+            "y": 1.2,
+            "z": 4.83314
+          },
+          "angle": -90,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    }
+  },
+  "invalidInputPause": {
+    "before": {
+      "mode": "routes",
+      "paused": false,
+      "elapsed": 0.40008600000000005,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 7.00086,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 10.5,
+            "y": 1.2,
+            "z": 4.499139999999999
+          },
+          "angle": -90,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    },
+    "after": {
+      "mode": "routes",
+      "paused": false,
+      "elapsed": 0.9333860000000003,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 6.298613461987235,
+            "y": 1.2,
+            "z": 8.149306730993617
+          },
+          "angle": 26.56505117707789,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9.733859999999995,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    },
+    "button": "일시정지",
+    "notice": [
+      "입력값을 확인한 뒤 화면을 이동하세요."
+    ]
+  },
+  "pausedModeSwitch": {
+    "before": {
+      "mode": "routes",
+      "paused": true,
+      "elapsed": 0.9500000000000002,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 6.447213595499958,
+            "y": 1.2,
+            "z": 8.223606797749978
+          },
+          "angle": 26.565051177078256,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9.9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    },
+    "after": {
+      "mode": "orders",
+      "paused": true,
+      "elapsed": 0,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 3,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "대기",
+          "done": false,
+          "cargo": null
+        }
+      ]
+    }
+  },
+  "completedResume": {
+    "before": {
+      "mode": "orders",
+      "paused": false,
+      "elapsed": 18.916699999999945,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 8,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "완료",
+          "done": true,
+          "cargo": {
+            "owner": "rack:W01-L01-B01-R01",
+            "position": {
+              "x": 10.5,
+              "y": 1.26,
+              "z": 3.6
+            }
+          }
+        }
+      ]
+    },
+    "after": {
+      "mode": "orders",
+      "paused": false,
+      "elapsed": 19.433399999999953,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 8,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "완료",
+          "done": true,
+          "cargo": {
+            "owner": "rack:W01-L01-B01-R01",
+            "position": {
+              "x": 10.5,
+              "y": 1.26,
+              "z": 3.6
+            }
+          }
+        }
+      ]
+    },
+    "button": "일시정지"
+  },
+  "offRouteOrder": {
+    "preview": {
+      "mode": "routes",
+      "paused": false,
+      "elapsed": 0.31670000000000004,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 6.167,
+            "y": 1.2,
+            "z": 6
+          },
+          "angle": 0,
+          "state": "경로 주행"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 10.5,
+            "y": 1.2,
+            "z": 5.333
+          },
+          "angle": -90,
+          "state": "경로 주행"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "이동 경로 미지정"
+        }
+      ],
+      "jobs": []
+    },
+    "orders": {
+      "mode": "orders",
+      "paused": false,
+      "elapsed": 0.4832,
+      "actors": [
+        {
+          "id": "FA01",
+          "code": "AMR-001",
+          "position": {
+            "x": 3,
+            "y": 1.2,
+            "z": 5.5
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "SH01",
+          "code": "4SHUTTLE-001",
+          "position": {
+            "x": 9,
+            "y": 1.2,
+            "z": 7
+          },
+          "angle": 0,
+          "state": "대기"
+        },
+        {
+          "id": "AMR01",
+          "code": "AMR01",
+          "position": {
+            "x": 16.35,
+            "y": 1.2,
+            "z": 11.3
+          },
+          "angle": 26,
+          "state": "대기"
+        }
+      ],
+      "jobs": [
+        {
+          "id": "JOB1",
+          "status": "FA01: 장비 중심을 지정 경로의 중심선에 배치하세요.",
+          "done": false,
+          "cargo": null
+        }
+      ]
+    },
+    "button": "일시정지"
+  }
+}

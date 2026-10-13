@@ -1,0 +1,43 @@
+{
+  "target": "http://127.0.0.1:4174/",
+  "offline": false,
+  "checks": [
+    "Active drawing renders with 6 racks and the bundled Three.js library",
+    "Simulation pause/resume, camera projection/views, drag/zoom, selection and search respond",
+    "Reload retains navigation; reference edits feed 3D while drawing edits and undo history survive round trips",
+    "Repeated transitions and compact layout work with no external requests, original storage keys or JavaScript errors"
+  ],
+  "errors": [],
+  "storageKeys": [
+    "gics-standalone-reference-data-v1",
+    "gics-standalone-drawing-v2:local-editor:tabs-v1"
+  ],
+  "requests": [
+    "http://127.0.0.1:4174/",
+    "http://127.0.0.1:4174/css/standalone.css",
+    "http://127.0.0.1:4174/css/floor-plan-editor.css",
+    "http://127.0.0.1:4174/css/warehouse-3d.css",
+    "http://127.0.0.1:4174/data/wms-reference-seed.js",
+    "http://127.0.0.1:4174/js/floor-plan-model.js",
+    "http://127.0.0.1:4174/js/floor-plan-reference-model.js",
+    "http://127.0.0.1:4174/js/floor-plan-reference-store.js",
+    "http://127.0.0.1:4174/js/floor-plan-reference-file.js",
+    "http://127.0.0.1:4174/js/floor-plan-reference-data.js",
+    "http://127.0.0.1:4174/js/floor-plan-rack-master.js",
+    "http://127.0.0.1:4174/js/simulation-session.js",
+    "http://127.0.0.1:4174/js/floor-plan-editor.js",
+    "http://127.0.0.1:4174/js/warehouse-local-data.js",
+    "http://127.0.0.1:4174/js/warehouse-page.js",
+    "http://127.0.0.1:4174/js/standalone.js",
+    "http://127.0.0.1:4174/vendor/three.js",
+    "http://127.0.0.1:4174/js/warehouse-operations.js",
+    "http://127.0.0.1:4174/js/warehouse-operation-scene.js",
+    "http://127.0.0.1:4174/js/warehouse-barcode-tunnel.js",
+    "http://127.0.0.1:4174/js/warehouse-drawing.js",
+    "http://127.0.0.1:4174/js/warehouse-route-preview.js",
+    "http://127.0.0.1:4174/js/warehouse-conveyor-layout.js",
+    "http://127.0.0.1:4174/js/warehouse-shuttle-rails.js",
+    "http://127.0.0.1:4174/js/warehouse-drawing-scene.js",
+    "http://127.0.0.1:4174/js/warehouse-3d.js"
+  ]
+}

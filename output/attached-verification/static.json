@@ -1,0 +1,261 @@
+{
+  "files": [
+    {
+      "path": "C:/Users/YCS/Desktop/floor-plan.gics",
+      "sha256": "70bdef169089456ce3732cfb6504d244d76051975437c715c499a4ce54bf0a7a"
+    },
+    {
+      "path": "C:/Users/YCS/Desktop/새 기준정보.tbl",
+      "sha256": "0725d0f4eb8e021bd89d475215fa142b8fa81a4842945c0f7c5c51e1ded74093"
+    }
+  ],
+  "issues": [],
+  "warnings": [
+    "현재 도면에 연결되지 않은 재고 560건은 표시하지 않습니다. 원본 기준정보는 보존됩니다.",
+    "SH01: 입출고 작업용 설비 마스터 SH01가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "SH01: 설비 상태 정보 SH01가 없습니다.",
+    "FA01: 입출고 작업용 설비 마스터 FA01가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "FA01: 설비 상태 정보 FA01가 없습니다.",
+    "SH02: 입출고 작업용 설비 마스터 SH02가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "SH02: 설비 상태 정보 SH02가 없습니다.",
+    "SH03: 입출고 작업용 설비 마스터 SH03가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "SH03: 설비 상태 정보 SH03가 없습니다.",
+    "FA02: 입출고 작업용 설비 마스터 FA02가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "FA02: 설비 상태 정보 FA02가 없습니다.",
+    "FA03: 입출고 작업용 설비 마스터 FA03가 없습니다. 지정 경로 반복 주행은 사용할 수 있습니다.",
+    "FA03: 설비 상태 정보 FA03가 없습니다.",
+    "TR-004: 사용 가능한 운영 경로가 없습니다.",
+    "TR-005: 사용 가능한 운영 경로가 없습니다."
+  ],
+  "objects": 27,
+  "racks": 4,
+  "locations": 640,
+  "inventory": 0,
+  "quantity": 0,
+  "activeOrders": [
+    {
+      "code": "TR-001",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-002",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-003",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-004",
+      "route": "",
+      "direction": "이동",
+      "quantity": 2
+    },
+    {
+      "code": "TR-005",
+      "route": "",
+      "direction": "입고",
+      "quantity": 6
+    },
+    {
+      "code": "TR-006",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-007",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-008",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-009",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-010",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-011",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-012",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-013",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-014",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-015",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-016",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-017",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-018",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-019",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-020",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-021",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-022",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-023",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-024",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-025",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-026",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-027",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-028",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-029",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    },
+    {
+      "code": "TR-030",
+      "route": "OUT01",
+      "direction": "출고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-031",
+      "route": "IN01",
+      "direction": "입고",
+      "quantity": 3
+    },
+    {
+      "code": "TR-032",
+      "route": "IN02",
+      "direction": "입고",
+      "quantity": 4
+    }
+  ],
+  "actors": [
+    {
+      "id": "SH01",
+      "code": "SH01",
+      "route": "GR01"
+    },
+    {
+      "id": "FA01",
+      "code": "FA01",
+      "route": "T01"
+    },
+    {
+      "id": "SH02",
+      "code": "SH02",
+      "route": "GR01"
+    },
+    {
+      "id": "SH03",
+      "code": "SH03",
+      "route": "GR01"
+    },
+    {
+      "id": "FA02",
+      "code": "FA02",
+      "route": "T02"
+    },
+    {
+      "id": "FA03",
+      "code": "FA03",
+      "route": "T03"
+    }
+  ]
+}

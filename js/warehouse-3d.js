@@ -573,13 +573,6 @@
         container.className = 'warehouse-3d-shell';
         container.innerHTML = `
             <div class="warehouse-3d-toolbar">
-                <div class="warehouse-3d-brand" aria-label="TEST, WMS Test Monitoring">
-                    <span class="warehouse-3d-brand-symbol" aria-hidden="true"></span>
-                    <span class="warehouse-3d-brand-copy">
-                        <strong>TEST</strong>
-                        <small>WMS Test Monitoring</small>
-                    </span>
-                </div>
                 <div class="warehouse-3d-kpi-list" role="list" aria-label="창고 운영 현황">
                     <div class="warehouse-3d-kpi-card is-cyan" role="listitem" data-warehouse-kpi="utilization">
                         <span class="warehouse-3d-kpi-icon" aria-hidden="true">
@@ -6379,9 +6372,6 @@
                 ...(data.meta?.unplacedRackCodes || []), ...(data.meta?.outOfRangeLocationCodes || [])].filter(Boolean);
             if (warnings.length) console.warn('[3D 창고 기준정보]', warnings);
             if (data.meta?.source === 'drawing') {
-                const brand=container.querySelector('.warehouse-3d-brand-copy');
-                brand.querySelector('strong').textContent=data.meta.name;
-                brand.querySelector('small').textContent='평면도 + 로컬 기준 정보';
                 const details=document.createElement('details');details.className='warehouse-drawing-warnings';
                 const summary=document.createElement('summary');summary.textContent=warnings.length?'연결 확인 '+warnings.length+'건':'도면 연결 정상';details.append(summary);
                 for(const warning of warnings){const line=document.createElement('p');line.textContent=String(warning);details.append(line);}

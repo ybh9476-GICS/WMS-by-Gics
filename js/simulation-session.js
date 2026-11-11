@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  let controller=null,notice='',preferredMode='routes';
+  let controller=null,notice='',preferredMode='orders';
   const emit=()=>window.dispatchEvent(new CustomEvent('wms-simulation-update',{detail:controller?.snapshot()||null}));
   window.WmsSimulationSession={
     attach(next){controller=next;notice='';controller.setMode(preferredMode);emit();return()=>{if(controller===next){controller=null;emit();}};},

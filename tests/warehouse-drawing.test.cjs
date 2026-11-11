@@ -15,6 +15,9 @@ const withoutLegacy=R.copy(book);withoutLegacy.sheets=withoutLegacy.sheets.filte
 const graph=api.graph(plan,['T01'],500),node=(x,y)=>graph.nodes.find(n=>Math.abs(n.x-x*1000)<.001&&Math.abs(n.y-y*1000)<.001);
 const route=window.WmsWarehouseOperations.pathBetween(graph,node(3,6),node(8,9));assert.ok(route.length>3);assert.ok(route.some(n=>n.x===6000&&n.y===6000));assert.ok(route.some(n=>n.x===6000&&n.y===8000));assert.equal(api.graph(plan,['T01'],1600).nodes.length,0);
 const cv=api.graph(plan,['CV01'],0,true),a=cv.nodes.find(n=>n.y===9000),b=cv.nodes.find(n=>n.y===7000);assert.ok(window.WmsWarehouseOperations.pathBetween(cv,a,b).length);assert.equal(window.WmsWarehouseOperations.pathBetween(cv,b,a).length,0);
+const previewCv=api.graph(plan,['CV01'],800,true),dock=plan.objects.find(o=>o.id==='D01'),buffer=plan.objects.find(o=>o.id==='B01');
+const previewAccess=window.WmsWarehouseDrawingScene.access;
+assert.ok(window.WmsWarehouseOperations.pathBetween(previewCv,previewAccess(previewCv,dock),previewAccess(previewCv,buffer)).length,'Repeat driving needs a dock-to-buffer carton path.');
 // A 1m-wide rail touches the station at x=13.5 while its centerline is x=13.
 const rail=api.graph({objects:[{id:'GR',kind:'GR',width:1,points:[{x:13,y:4.5},{x:13,y:14.5}]}]},['GR'],1000);
 const station={x:13.5,y:4,w:1,h:1,angle:0},access=window.WmsWarehouseDrawingScene.access;

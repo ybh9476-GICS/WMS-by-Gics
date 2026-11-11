@@ -182,6 +182,7 @@
             this.prepare = prepare; this.onEvent = onEvent; this.locks = new Map(); this.paused = false; this.elapsed = 0;
             this.startedAt = startedAt;
             this.conveyorEntryTimes = new Map();
+            this.conveyorEntryCounts = new Map();
             this.reservationWaiters = new Map(); this.reservationSequence = 0;
             this.actors.forEach(actor => { actor.transportHistory = []; });
         }
@@ -254,6 +255,10 @@
                     continue;
                 }
                 if (!step.started) {
+                    if (step.entryQueue && step.entryLimit > 0
+                        && (this.conveyorEntryCounts.get(step.entryQueue) || 0) >= step.entryLimit) {
+                        job.status = '컨베이어 투입 상한 대기'; continue;
+                    }
                     if (step.waitForJobs?.length && this.jobs.some(other => step.waitForJobs.includes(other.id)
                         && !Number.isFinite(other.conveyorEnteredAt))) {
                         job.status = '위쪽 팔레트 반출 대기'; continue;
@@ -266,6 +271,10 @@
                     if (step.entryQueue && step.entryInterval > 0
                         && this.elapsed - (this.conveyorEntryTimes.get(step.entryQueue) ?? -Infinity) < step.entryInterval - 1e-9) {
                         job.status = '컨베이어 투입 간격 대기'; continue;
+                    }
+                    if (step.conveyor && step.conveyorCapacity > 0 && job.cargo.owner !== 'conveyor'
+                        && this.jobs.filter(other => other.cargo?.owner === 'conveyor').length >= step.conveyorCapacity) {
+                        job.status = '컨베이어 적재 한도 대기'; continue;
                     }
                     if (step.conveyor && job.cargo.owner !== 'conveyor' && this.jobs.some(other => other !== job
                         && other.cargo?.owner === 'conveyor'
@@ -287,7 +296,10 @@
                     if (actor) { actor.job = job.id; actor.status = step.label; }
                     step.started = true; job.elapsed = 0; step.index = 0;
                     if (step.startOwner) job.cargo.owner = step.startOwner;
+                    this.release(job, step.releaseOnStart);
                     if (step.entryQueue && step.entryInterval > 0) this.conveyorEntryTimes.set(step.entryQueue, this.elapsed);
+                    if (step.entryQueue && step.entryLimit > 0) this.conveyorEntryCounts.set(step.entryQueue,
+                        (this.conveyorEntryCounts.get(step.entryQueue) || 0) + 1);
                     if (step.startOwner === 'conveyor') job.conveyorEnteredAt = this.elapsed;
                 }
                 job.status = step.label;
@@ -302,7 +314,7 @@
                     if (actor && movingHorizontally) {
                         const wanted = Math.atan2(dx, dz);
                         const turn = Math.atan2(Math.sin(wanted - actor.yaw), Math.cos(wanted - actor.yaw));
-                        actor.yaw += Math.sign(turn) * Math.min(Math.abs(turn), dt * 2.4);
+                        actor.yaw += Math.sign(turn) * Math.min(Math.abs(turn), dt * (actor.turnRate || 2.4));
                         if (Math.abs(turn) > 0.03) {
                             actor.status = '회전';
                             if (record && !record.unloadedAt) record.status = '회전';

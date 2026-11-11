@@ -6,3 +6,6 @@ body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; font-size: 13px; li
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+.wms-brand { display: inline-flex; align-items: baseline; justify-content: flex-start; gap: 5px; width: 158px; height: 34px; flex: 0 0 158px; white-space: nowrap; line-height: 34px; color: var(--wms-brand-color, #24344b); }
+.wms-brand strong { font-size: 19px; font-weight: 800; letter-spacing: -.04em; }
+.wms-brand span { font-size: 12px; font-weight: 700; letter-spacing: -.01em; }

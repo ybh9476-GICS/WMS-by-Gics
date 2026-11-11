@@ -89,7 +89,7 @@
 
 /* Reference sheets are a separate workspace. Drawing panes remain mounted and untouched. */
 .fp-editor[data-workspace=reference]>.fp-main,.fp-editor[data-workspace=reference]>.fp-validation{display:none}
-.fp-editor[data-workspace=reference] .fp-toolbar>:not(.fp-toolbar-shortcuts):not([data-action=import]):not([data-action=export]):not([data-action=excelImport]):not([data-action=excelExport]){display:none}
+.fp-editor[data-workspace=reference] .fp-toolbar>:not(.wms-brand):not(.fp-toolbar-shortcuts):not([data-action=import]):not([data-action=export]):not([data-action=excelImport]):not([data-action=excelExport]){display:none}
 .fp-editor:not([data-workspace=reference]) .fp-toolbar>[data-action=excelImport],.fp-editor:not([data-workspace=reference]) .fp-toolbar>[data-action=excelExport]{display:none}
 .fp-editor .fp-reference-workspace{display:grid;grid-template-columns:230px minmax(0,1fr);flex:1;min-height:0;min-width:0;background:#edf2f8}
 .fp-editor .fp-reference-table-area{display:flex;flex-direction:column;min-width:0;min-height:0;padding:12px;gap:8px}

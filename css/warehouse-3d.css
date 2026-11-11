@@ -12,6 +12,7 @@
     align-items: center; gap: 12px; min-height: 96px; padding: 10px 12px;
     border-bottom: 1px solid #263854; background: #0d1a2d;
 }
+.warehouse-3d-brand { --wms-brand-color: #f8fafc; grid-column: 1; grid-row: 1; }
 .warehouse-3d-toolbar-main { flex-wrap: wrap; }
 .warehouse-3d-toolbar-main { display: flex; align-items: center; gap: 8px; }
 .warehouse-3d-kpi-list {

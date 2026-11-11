@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const window={dispatchEvent(){}},CustomEvent=class{constructor(type,options){this.type=type;this.detail=options.detail;}};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../js/simulation-session.js'),'utf8'),{window,CustomEvent});
+const shared=window.WmsSimulationSession,modes=[];
+assert.equal(shared.mode,'orders','Work orders must be selected before either view opens.');
+const detach=shared.attach({setMode(mode){modes.push(mode);},snapshot(){return {mode:modes.at(-1),status:'ready'};}});
+assert.equal(modes.at(-1),'orders','Attaching the 3D view must keep the default mode.');
+shared.setMode('routes');assert.equal(modes.at(-1),'routes','The user can still explicitly choose route preview.');
+detach();assert.equal(shared.mode,'routes','The selected mode survives a 2D/3D view switch.');
+console.log('PASS simulation session: work-order default and explicit route selection');

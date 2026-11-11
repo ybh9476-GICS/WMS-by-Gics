@@ -125,5 +125,47 @@
     }
     return {nodes,nodesByKey,step:250,vehicleDiameter:diameter,edges};
   }
-  window.WmsWarehouseDrawing={convert,graph};
+  // Keep the entire AMR footprint outside shuttle-only stations, including links that cross one.
+  function amrGraph(plan, ids, actor) {
+    const network=graph(plan,ids,Math.max(actor.w,actor.h)*1000);
+    const stations=plan.objects.filter(o=>o.kind==='S');
+    if(!stations.length)return network;
+    const radius=Math.hypot(actor.w,actor.h)/2+.1;
+    const local=(node,station)=>{
+      const x=node.x/1000-station.x-station.w/2,y=node.y/1000-station.y-station.h/2;
+      const angle=-station.angle*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
+      return {x:x*cos-y*sin,y:x*sin+y*cos};
+    };
+    const pointRectDistance=(p,station)=>Math.hypot(Math.max(Math.abs(p.x)-station.w/2,0),Math.max(Math.abs(p.y)-station.h/2,0));
+    const pointSegmentDistance=(p,a,b)=>{
+      const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
+      const t=length?Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/length)):0;
+      return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+    };
+    const crossesRect=(a,b,station)=>{
+      let start=0,end=1;
+      for(const [p,q] of [[-(b.x-a.x),a.x+station.w/2],[(b.x-a.x),station.w/2-a.x],
+        [-(b.y-a.y),a.y+station.h/2],[(b.y-a.y),station.h/2-a.y]]){
+        if(Math.abs(p)<1e-12){if(q<0)return false;continue;}
+        const t=q/p;if(p<0)start=Math.max(start,t);else end=Math.min(end,t);
+        if(start>end)return false;
+      }
+      return true;
+    };
+    const segmentDistance=(a,b,station)=>{
+      if(crossesRect(a,b,station))return 0;
+      const corners=[[-1,-1],[-1,1],[1,-1],[1,1]];
+      return Math.min(pointRectDistance(a,station),pointRectDistance(b,station),
+        ...corners.map(([x,y])=>pointSegmentDistance({x:x*station.w/2,y:y*station.h/2},a,b)));
+    };
+    const nodes=network.nodes.filter(node=>stations.every(station=>pointRectDistance(local(node,station),station)>radius));
+    const nodesByKey=new Map(nodes.map(node=>[node.key,{...node,neighbors:[]}]));
+    for(const node of nodes)for(const key of node.neighbors){
+      const next=nodesByKey.get(key);if(!next)continue;
+      if(stations.every(station=>segmentDistance(local(node,station),local(next,station),station)>radius))
+        nodesByKey.get(node.key).neighbors.push(key);
+    }
+    return {...network,nodes:[...nodesByKey.values()],nodesByKey};
+  }
+  window.WmsWarehouseDrawing={convert,graph,amrGraph};
 })();

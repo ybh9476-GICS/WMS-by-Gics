@@ -573,6 +573,7 @@
         container.className = 'warehouse-3d-shell';
         container.innerHTML = `
             <div class="warehouse-3d-toolbar">
+                <div class="wms-brand warehouse-3d-brand" aria-label="WMS by impix"><strong>WMS</strong><span>by impix</span></div>
                 <div class="warehouse-3d-kpi-list" role="list" aria-label="창고 운영 현황">
                     <div class="warehouse-3d-kpi-card is-cyan" role="listitem" data-warehouse-kpi="utilization">
                         <span class="warehouse-3d-kpi-icon" aria-hidden="true">

@@ -14,6 +14,26 @@ for (const [direction, action, effect] of [['입고', '하차', 'truck-unload'],
     assert.equal(Ops.truckProgress(jobs, 'D01', direction), `${action} 완료`);
     assert.equal(Ops.truckProgress(jobs, 'D02', direction), `${action} 대기`, 'An empty dock must not report complete.');
 }
+for (const [direction, owner, nextOwner, effect, action] of [
+    ['입고', 'truck:D01', 'dock:D01', 'truck-unload', '하차'],
+    ['출고', 'dock:D01', 'truck:D01', 'truck-load', '상차']
+]) {
+    const route = { dock: 'D01', direction };
+    const transfer = new Ops.Simulation({ actors: [], jobs: [{ id: direction, route }],
+        prepare: () => ({ cargo: { owner, position: { x: 0, y: 1, z: 0 } },
+            steps: [{ owner: nextOwner, position: { x: 0, y: 1, z: 0 }, effect, label: `차량 ${action}`, duration: 1 }] }),
+        onEvent: (event, job) => { if (event === 'truck-unload' || event === 'truck-load') job.truckTransferComplete = true; }
+    });
+    const progress = () => Ops.truckProgress(transfer.jobs, 'D01', direction);
+    assert.equal(progress(), `${action} 대기`);
+    transfer.tick(0.05);
+    assert.equal(progress(), `${action} 중`);
+    transfer.paused = true; transfer.tick(2);
+    assert.equal(progress(), `${action} 중`, 'Pausing must preserve an unfinished transfer.');
+    transfer.paused = false; transfer.tick(1.05);
+    assert.equal(transfer.jobs[0].cargo.owner, nextOwner);
+    assert.equal(progress(), `${action} 완료`);
+}
 const ctx = { window: { dispatchEvent() {} }, Event: class {}, console };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(require.resolve('../js/warehouse-3d.js'), 'utf8'), ctx);
@@ -77,6 +97,27 @@ stackSim.tick(25);
 const admitted = [...stackSim.jobs].sort((a, b) => a.conveyorEnteredAt - b.conveyorEnteredAt);
 assert.deepEqual(admitted.map(job => job.index), departureOrder);
 admitted.slice(1).forEach((job, index) => assert.ok(job.conveyorEnteredAt - admitted[index].conveyorEnteredAt >= 5 - 1e-8));
+
+const capacitySim = new Ops.Simulation({ actors: [], jobs: Array.from({ length: 6 }, (_, index) => ({ id: `BELT-${index}`, index })),
+    prepare: job => ({ cargo: { owner: 'dock:D01', position: { x: job.index * 10, y: 1, z: 0 } },
+        steps: [{ label: '컨베이어 운반', conveyor: true, conveyorCapacity: 5, startOwner: 'conveyor',
+            path: [{ x: job.index * 10, y: 1, z: 10 }], speed: 1 },
+            { owner: 'buffer:B01', label: '버퍼 인계', duration: 0 }] }) });
+capacitySim.tick(0.05);
+assert.equal(capacitySim.jobs.filter(job => job.cargo.owner === 'conveyor').length, 5,
+    'The sixth carton waits while five cartons occupy the conveyor.');
+assert.equal(capacitySim.jobs[5].status, '컨베이어 적재 한도 대기');
+for (let index = 0; index < 250; index++) capacitySim.tick(0.05);
+assert.ok(Number.isFinite(capacitySim.jobs[5].conveyorEnteredAt), 'Waiting carton resumes after a conveyor place opens.');
+const limitSim = new Ops.Simulation({ actors: [], jobs: Array.from({ length: 7 }, (_, index) => ({ id: `DOCK-${index}` })),
+    prepare: () => ({ cargo: { owner: 'dock:D01', position: { x: 0, y: 1, z: 0 } },
+        steps: [{ label: '컨베이어 투입', startOwner: 'conveyor', entryQueue: 'CV:D01', entryInterval: 5,
+            entryLimit: 5, duration: 0.1 }] }) });
+limitSim.tick(35);
+assert.equal(limitSim.conveyorEntryCounts.get('CV:D01'), 5);
+assert.equal(limitSim.jobs.filter(job => Number.isFinite(job.conveyorEnteredAt)).length, 5,
+    'Only five cartons may enter from D01 over the whole simulation run.');
+assert.equal(limitSim.jobs.filter(job => job.status === '컨베이어 투입 상한 대기').length, 2);
 
 const events = [];
 const route = { code: 'IN01', direction: '입고', amr: 'AMR-002', buffer: 'B01', station: 'S02' };

@@ -202,6 +202,7 @@
         if(atStation?.id===station.id)arrive.splice(0,arrive.length,{x:current.x,y:floorY,z:current.y});
         else arrive.unshift({x:current.x,y:floorY,z:current.y});
         for(const slot of slots){
+          if(job.sourceLocationCode&&slot.locationCode!==job.sourceLocationCode)continue;
           if(sim.locks.has('slot:'+slot.locationCode))continue;
           if(inbound?slot.occupied||slot.location?.capacity<job.quantity||!slot.location:!slot.occupied||slot.stock.itemCode!==job.itemCode||slot.stock.quantity<job.quantity||['hold','defect'].includes(slot.stock.status)){fail(2,inbound?'로케이션 마스터: 빈 로케이션·최대수량 확인':'재고 현황: '+job.itemCode+'의 출고 가능 재고·수량 확인');continue;}
           const world=slot.group.localToWorld(new THREE.Vector3(slot.position[0],slot.palletBaseY,slot.position[2]));
@@ -336,13 +337,14 @@
       if(!cycleOutbound)return;
       const active=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'&&!job.done).length;
       if(active>=8)return;
-      const available=slots.filter(slot=>slot.occupied&&slot.stock?.quantity>0&&!simulation.locks.has('slot:'+slot.locationCode));
+      const available=slots.filter(slot=>slot.occupied&&slot.stock?.quantity>0
+        &&!['hold','defect'].includes(slot.stock.status)&&!simulation.locks.has('slot:'+slot.locationCode));
       for(const slot of available.slice(0,Math.min(2,8-active))){
         const id=`SIM-D03-${++cycleSerial}`,order={...cycleOutbound.order,code:id,status:'대기',
           direction:'출고',routeCode:cycleOutbound.route.code,equipmentCode:cycleOutbound.route.amr,
-          itemCode:slot.stock.itemCode,quantity:1,finalLocationCode:''};
-        simulation.jobs.push({id,order,route:cycleOutbound.route,itemCode:order.itemCode,quantity:1,
-          cycle:true,stage:0,steps:null,status:'대기',elapsed:0,done:false,cargo:null,
+          itemCode:slot.stock.itemCode,quantity:slot.stock.quantity,finalLocationCode:''};
+        simulation.jobs.push({id,order,route:cycleOutbound.route,itemCode:order.itemCode,quantity:order.quantity,
+          cycle:true,sourceLocationCode:slot.locationCode,stage:0,steps:null,status:'대기',elapsed:0,done:false,cargo:null,
           dockPlace:freeDockPlaces('D03',1)[0]});
       }
     }
@@ -352,6 +354,12 @@
         &&job.cargo?.owner==='dock:D03'&&job.truckWaitStep&&!job.truckBatchReleased)
         .sort((a,b)=>(a.dockArrivedAt??Infinity)-(b.dockArrivedAt??Infinity));
       if(staged.length>=6)for(const job of staged.slice(0,4)){job.truckBatchReleased=true;job.truckWaitStep.duration=0;}
+      for(let index=simulation.jobs.length-1;index>=0;index--){
+        const job=simulation.jobs[index];if(!job.cycle||job.order.direction!=='출고'||job.steps||!job.sourceLocationCode)continue;
+        const slot=slots.find(value=>value.locationCode===job.sourceLocationCode);
+        if(!slot?.occupied||slot.stock?.itemCode!==job.itemCode||slot.stock.quantity<job.quantity
+          ||['hold','defect'].includes(slot.stock.status)||simulation.locks.has('slot:'+slot.locationCode))simulation.jobs.splice(index,1);
+      }
       for(const code of cycleInbound.keys())if(cycleDockCount(code)<=4)addInbound(code);
       addOutbound();
       for(let index=simulation.jobs.length-1;index>=0;index--){

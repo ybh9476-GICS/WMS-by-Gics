@@ -193,4 +193,28 @@ assert.equal(session.snapshot().status,'stopped');
 assert.equal(JSON.parse(cycleViewport.dataset.operationJobs).some(job=>job.id.startsWith('SIM-')),false,
  'Stop restores the original work-order set.');
 cycleMount.dispose();
+const heldSlots=cycleSlots.map((slot,index)=>({...slot,occupied:index<6,
+ stock:index===0?{itemCode:'HELD',quantity:1,status:'hold'}:index<6?{itemCode:'ITEM1',quantity:5,status:'normal'}:null}));
+const heldViewport=new Element();heldViewport.closest=()=>shellRoot;
+const OriginalSimulation=Ops.Simulation;let heldSimulation;
+Ops.Simulation=class extends OriginalSimulation{constructor(options){super(options);heldSimulation=this;}};
+const heldData={...cycleData,items:[...cycleData.items,{code:'HELD',color:'#777777'}],
+ workOrders:[{...cycleOrders[0],code:'OUT-HELD',itemCode:'HELD',quantity:1},
+  ...cycleOrders.filter(order=>order.routeCode==='IN01').slice(0,4),
+  ...cycleOrders.filter(order=>order.routeCode==='IN02').slice(0,4)]};
+const heldMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:heldData,
+ scene:new THREE.Group(),shell:{viewport:heldViewport,zoneButtons:new Element()},
+ rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:heldSlots}]});
+let dynamicPicked=false,dynamicFreed=false;
+const originalEvent=heldSimulation.onEvent;
+heldSimulation.onEvent=(event,job)=>{originalEvent(event,job);if(event==='pick'&&job.cycle&&job.order.direction==='출고'){
+ dynamicPicked=true;dynamicFreed=!job.slot.occupied&&job.slot.stock.quantity===0;}};
+session.play();
+for(let time=0;time<=1000;time+=100)heldMount.update(time);
+assert.equal(JSON.parse(heldViewport.dataset.operationJobs).filter(job=>job.id.startsWith('SIM-D03-')
+ &&job.status.includes('HELD')).length,0,'Cycle dispatch must skip held inventory instead of filling its outbound queue.');
+for(let time=1100;time<=180000&&!dynamicPicked;time+=100)heldMount.update(time);
+assert.ok(dynamicPicked&&dynamicFreed,'A generated outbound trip frees its entire source cell for the next inbound load.');
+heldMount.dispose();
+Ops.Simulation=OriginalSimulation;
 console.log('PASS cargo scenes: real work-order dock stack, conveyor-to-rack and rack-to-truck, preview, pause and stop');

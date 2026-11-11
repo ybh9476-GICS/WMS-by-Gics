@@ -2,6 +2,8 @@
 
 `index.html`을 Edge 또는 Chrome에서 열면 에디터가 바로 실행됩니다. 실행을 위한 설치, 로그인, 로컬 서버, 인터넷 연결은 필요하지 않습니다.
 
+처음 방문하는 브라우저는 `output/floor-plan.gics`와 `output/floor-plan-reference-fixed.tbl`에서 만든 기본 창고와 기준정보로 시작하므로 GitHub Pages에서도 입출고 모의 운행을 바로 재생할 수 있습니다. 기존 브라우저에 저장된 도면·기준정보는 그대로 우선합니다. 단, 이전 버전의 수정하지 않은 `연습용 창고`만 저장된 브라우저에는 기존 탭을 보존하고 기본 창고 탭을 추가합니다. 기본 자료를 변경했다면 `node scripts/build-demo-seed.cjs`로 `data/wms-demo-seed.js`를 다시 만드세요.
+
 ## 로컬 서버로 테스트하기
 
 `start-local-editor.cmd`를 더블클릭하면 전용 서버를 실행하고 기본 브라우저에서 **http://127.0.0.1:4174/** 를 엽니다. 서버 방식에는 Node.js가 필요하며, 추가 패키지 설치는 필요하지 않습니다. 터미널에서는 이 폴더에서 `npm run dev`로 실행할 수 있습니다.

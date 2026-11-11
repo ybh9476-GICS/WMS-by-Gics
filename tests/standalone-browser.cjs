@@ -11,6 +11,10 @@ fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, offline: fileMode });
   await context.addInitScript(require('./save-picker-harness.cjs'));
+  await context.addInitScript(plan => {
+    if (!localStorage.getItem('gics-standalone-drawing-v2:local-editor:tabs-v1') && !localStorage.getItem('gics-standalone-drawing-v2:local-editor'))
+      localStorage.setItem('gics-standalone-drawing-v2:local-editor', JSON.stringify(plan));
+  }, require('../js/floor-plan-model.js').sample());
   const page = await context.newPage(), errors = [], requests = [], checks = [];
   page.setDefaultTimeout(10000);
   page.on('pageerror', error => errors.push(error.message));

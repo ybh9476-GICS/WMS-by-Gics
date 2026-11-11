@@ -51,8 +51,9 @@
     return text;
   }
   async function seed() {
-    if (!root.WMS_REFERENCE_SEED) throw Error('기준정보 초기 데이터 파일을 불러오지 못했습니다.');
-    return root.WmsFloorPlanReferenceModel.validate(root.WMS_REFERENCE_SEED);
+    const initial = root.WMS_DEMO_SEED?.book || root.WMS_REFERENCE_SEED;
+    if (!initial) throw Error('기준정보 초기 데이터 파일을 불러오지 못했습니다.');
+    return root.WmsFloorPlanReferenceModel.validate(initial);
   }
   async function load() {
     let stored;

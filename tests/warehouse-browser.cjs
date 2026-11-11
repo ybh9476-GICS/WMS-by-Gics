@@ -10,6 +10,10 @@ const fileMode = target.startsWith('file:');
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, offline: fileMode });
+  await context.addInitScript(plan => {
+    if (!localStorage.getItem('gics-standalone-drawing-v2:local-editor:tabs-v1') && !localStorage.getItem('gics-standalone-drawing-v2:local-editor'))
+      localStorage.setItem('gics-standalone-drawing-v2:local-editor', JSON.stringify(plan));
+  }, require('../js/floor-plan-model.js').sample());
   const page = await context.newPage(), errors = [], requests = [], checks = [];
   page.setDefaultTimeout(15000);
   page.on('pageerror', error => errors.push(error.message));

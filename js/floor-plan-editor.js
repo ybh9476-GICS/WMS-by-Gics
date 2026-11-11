@@ -8,11 +8,20 @@ function dispose(panel){const s=states.get(panel);if(s){s.destroy();states.delet
 function mount(panel,menu){
  const key='gics-standalone-drawing-v2:'+menu.id,legacyKey='gics-standalone-drawing-v1:'+menu.id,tabsKey=key+':tabs-v1';
  const fitRackPlan=value=>{const plan=M.read(value),next=M.clone(plan);next.rackTypes=next.rackTypes.map(normalizeRackHeight);for(const o of next.objects.filter(o=>o.kind==='W'&&o.rackTypeId)){const layout=M.rackLayout(o,next);if(layout?.bays&&layout.rows)M.fitRack(o,next,layout.bays,layout.rows,true);else if(o.margin===undefined)o.margin=0;}return M.read(next);};
- let raw=null,initial=fitRackPlan(M.sample()),conflict=false,loadMessage='연습용 배치 · 아직 저장 전';
+ const starter=window.WMS_DEMO_SEED?.plan;
+ let raw=null,initial=fitRackPlan(starter||M.sample()),conflict=false,loadMessage=starter?'기본 창고 배치 · 아직 저장 전':'연습용 배치 · 아직 저장 전';
  try{raw=localStorage.getItem(key);const old=raw===null?localStorage.getItem(legacyKey):null;if(raw||old){initial=fitRackPlan(JSON.parse(raw||old));loadMessage=old?'이전 초안 불러옴 · 원본은 별도 보존':'브라우저 초안 불러옴';}}catch(e){conflict=true;loadMessage='초안 읽기 실패 · 원본을 보존하기 위해 편집을 중지했습니다. '+e.message;}
  const abort=new AbortController(),signal=abort.signal;let history=new M.History(initial),tabsRaw=null,activeDocumentId='tab1',nextDocumentId=2,nextDrawingNumber=0,documents=[{id:'tab1',history,view:null}];
  try{tabsRaw=localStorage.getItem(tabsKey);if(tabsRaw!==null){const data=JSON.parse(tabsRaw);if(![1,2].includes(data?.version)||!Array.isArray(data.documents)||data.documents.length>50||!Number.isSafeInteger(data.nextDocumentId)||data.nextDocumentId<2||!Number.isSafeInteger(data.nextDrawingNumber)||data.nextDrawingNumber<0)throw Error('도면 탭 목록이 올바르지 않습니다.');const ids=new Set(),loaded=data.documents.map(d=>{if(!/^tab[1-9]\d*$/.test(d?.id)||ids.has(d.id))throw Error('도면 탭 식별자가 올바르지 않습니다.');ids.add(d.id);const plan=fitRackPlan(d.plan),savedPlan=data.version===1?JSON.stringify(plan):d.savedPlan===null?null:JSON.stringify(fitRackPlan(d.savedPlan));return {id:d.id,history:new M.History(plan),view:null,savedPlan};});documents=loaded;activeDocumentId=loaded.some(d=>d.id===data.activeId)?data.activeId:loaded[0]?.id||'';history=loaded.find(d=>d.id===activeDocumentId)?.history||new M.History(M.blank());initial=history.plan;nextDocumentId=data.nextDocumentId;nextDrawingNumber=data.nextDrawingNumber;loadMessage='브라우저 도면 탭 '+loaded.length+'개 복원';}}catch(error){conflict=true;loadMessage='도면 탭 읽기 실패 · 원본을 보존하기 위해 편집을 중지했습니다. '+error.message;}
  const savedDocumentPlans=new Map();for(const d of documents){const saved=Object.hasOwn(d,'savedPlan')?d.savedPlan:JSON.stringify(d.history.plan);if(saved!==null)savedDocumentPlans.set(d.id,saved);delete d.savedPlan;}
+ if(starter&&tabsRaw&&documents.length===1){
+  const example=JSON.stringify(fitRackPlan(M.sample())),original=documents[0];
+  if(JSON.stringify(original.history.plan)===example&&savedDocumentPlans.get(original.id)===example){
+   const plan=fitRackPlan(starter),id='tab'+nextDocumentId++,demo={id,history:new M.History(plan),view:null};
+   documents.push(demo);savedDocumentPlans.set(id,JSON.stringify(plan));activeDocumentId=id;history=demo.history;initial=plan;
+   loadMessage='기본 창고 탭을 추가했습니다. 기존 연습용 도면은 보존했습니다.';
+  }
+ }
  let selected=initial.objects[0]?.id||'',tool='select',template=null,node=-1,segment=0,activeBranch=-1,branchDraft=null,anchor='topLeft',points=[],hover=null,gesture=null,preview=null,previewPlan=null,pending=false,previewError='',guides=[],camera={x:-1,y:-1,s:18},savedRaw=raw,savedTabsRaw=tabsRaw,epoch=0,panelResize=null,numberScrub=null,panelObserver=null,inspectorHintObserver=null,masterLoadAbort=null,masterLoading=false,fileSaving=false,rackClipboard=null;
  let equipmentRatioLocked=false,equipmentRatioBase=null,equipmentRatioError='';
  const state={active:true,cancel,refresh,fit,destroy,switchWorkspace,resetPanelWidths:()=>{},snapshot:()=>documents.length?M.clone(history.plan):null,documentId:()=>activeDocumentId};

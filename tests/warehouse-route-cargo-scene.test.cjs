@@ -147,4 +147,50 @@ assert.ok(stagedLoads.some(load=>load.position.x!==stagedLoads[0].position.x||lo
 assert.equal(outboundSlot.occupied,false,'The simulated pickup empties the rack slot.');
 assert.equal(outboundSlot2.occupied,false);
 outboundMount.dispose();
+const cycleObjects=[...orderObjects.map(object=>object.id==='T01'?{...object,points:[
+ {x:3,y:6},{x:6,y:6},{x:7.5,y:6},{x:7.5,y:4},{x:16,y:4},{x:16,y:6}]}:object),
+ {id:'D02',kind:'D',x:4,y:9,w:2,h:2,angle:0},
+ {id:'D03',kind:'D',x:15,y:9,w:2,h:2,angle:0},
+ {id:'B03',kind:'B',x:15,y:5,w:2,h:2,angle:0},
+ {id:'CV02',kind:'CV',points:[{x:5,y:9},{x:5,y:7},{x:2,y:7}],width:1.2},
+ {id:'CV03',kind:'CV',points:[{x:16,y:7},{x:16,y:9}],width:1.2}];
+const cycleSlots=Array.from({length:12},(_,index)=>({...slots[index%slots.length],locationCode:`CYCLE-${index+1}`,
+ position:[0,0,index*.08],occupied:index<6,stock:index<6?{itemCode:'ITEM1',quantity:1,status:'normal'}:null}));
+const cycleOrders=[...Array.from({length:6},(_,index)=>({...workOrders[0],code:`OUT-C${index+1}`,direction:'출고',routeCode:'OUT01'})),
+ ...Array.from({length:8},(_,index)=>({...workOrders[0],code:`IN1-C${index+1}`,routeCode:'IN01'})),
+ ...Array.from({length:8},(_,index)=>({...workOrders[0],code:`IN2-C${index+1}`,routeCode:'IN02'}))];
+const cycleData={...orderData,meta:{...orderData.meta,plan:{objects:cycleObjects},actors:actors.map(actor=>({...actor,
+ master:{...actor.master,configuredSpeed:40}}))},workOrders:cycleOrders,
+ operationRoutes:[{...orderData.operationRoutes[0]},
+  {...orderData.operationRoutes[0],code:'IN02',dock:'D02'},
+  {...orderData.operationRoutes[0],code:'OUT01',direction:'출고',dock:'D03',buffer:'B03'}]};
+const cycleScene=new THREE.Group(),cycleViewport=new Element();cycleViewport.closest=()=>shellRoot;
+const cycleMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:cycleData,scene:cycleScene,
+ shell:{viewport:cycleViewport,zoneButtons:new Element()},rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:cycleSlots}]});
+session.play();let replenished=false,truckBatch=false,maxOnBelt=0,firstTruckAt=null,secondTruckAt=null;
+for(let time=0;time<=300000;time+=100){cycleMount.update(time);
+ const jobs=JSON.parse(cycleViewport.dataset.operationJobs);
+ const queues=JSON.parse(cycleViewport.dataset.operationDockQueues);
+ maxOnBelt=Math.max(maxOnBelt,jobs.filter(job=>job.cargoOwner==='conveyor').length);
+ replenished||=jobs.some(job=>job.id.startsWith('SIM-D01-'))&&jobs.some(job=>job.id.startsWith('SIM-D02-'));
+ const loaded=JSON.parse(cycleViewport.dataset.operationCycleTotals).출고;
+ if(loaded>=4)firstTruckAt??=time;
+ if(firstTruckAt!==null&&loaded>=8)secondTruckAt??=time;
+ if(replenished&&firstTruckAt!==null&&secondTruckAt!==null&&queues.D01>=4&&queues.D02>=4)break;
+}
+assert.ok(replenished,'D01 and D02 receive simulation-only replenishment after their stacks fall.');
+assert.ok(firstTruckAt!==null&&secondTruckAt>firstTruckAt,'D03 loads multiple four-box batches and keeps cycling.');
+assert.equal(session.snapshot().status,'running','Work-order simulation stays running after initial jobs finish.');
+assert.ok(maxOnBelt<=5,'No more than five cartons occupy the conveyor at once.');
+const beforePause=cycleViewport.dataset.operationElapsed,pausedQueues=cycleViewport.dataset.operationDockQueues;
+session.pause();cycleMount.update(900100);cycleMount.update(910000);
+assert.equal(cycleViewport.dataset.operationElapsed,beforePause,'Pause freezes the continuous clock.');
+assert.equal(cycleViewport.dataset.operationDockQueues,pausedQueues,'Pause freezes replenishment and loading.');
+session.play();cycleMount.update(910100);cycleMount.update(910200);
+assert.equal(session.snapshot().status,'running','Play resumes the same continuous run.');
+session.stop();cycleMount.update(910300);
+assert.equal(session.snapshot().status,'stopped');
+assert.equal(JSON.parse(cycleViewport.dataset.operationJobs).some(job=>job.id.startsWith('SIM-')),false,
+ 'Stop restores the original work-order set.');
+cycleMount.dispose();
 console.log('PASS cargo scenes: real work-order dock stack, conveyor-to-rack and rack-to-truck, preview, pause and stop');

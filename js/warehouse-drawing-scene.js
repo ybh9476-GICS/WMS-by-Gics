@@ -126,7 +126,7 @@
     const move=(actor,path,label)=>({actor,path,label});
     const transfer=(owner,position,label,effect)=>({owner,position,label,effect,duration:1});
     const jobs=data.workOrders.filter(w=>!['완료','취소'].includes(w.status)).map(w=>({id:w.code,order:w,route:data.operationRoutes.find(r=>r.enabled&&r.code===w.routeCode),itemCode:w.itemCode,quantity:w.quantity}));
-    const dockJobs=new Map(),outboundDockJobs=new Map(),sampleSize=slots[0]?.boxSize||[.8,.7,.8];
+    const dockJobs=new Map(),outboundDockJobs=new Map(),dockLayouts=new Map(),sampleSize=slots[0]?.boxSize||[.8,.7,.8];
     for(const job of jobs.filter(j=>['입고','출고'].includes(j.route?.direction))){
       const groups=job.route.direction==='입고'?dockJobs:outboundDockJobs,key=job.route.dock;
       if(!groups.has(key))groups.set(key,[]);groups.get(key).push(job);
@@ -135,6 +135,7 @@
       const dock=byId(dockCode);if(dock?.kind!=='D')continue;
       const bounds=M.bounds(dock),entry=access(cv,dock),region={minX:bounds.x*1000,maxX:(bounds.x+bounds.w)*1000,minY:bounds.y*1000,maxY:(bounds.y+bounds.h)*1000,
         centerX:(bounds.x+bounds.w/2)*1000,centerY:(bounds.y+bounds.h/2)*1000};
+      dockLayouts.set(dockCode,{region,entry});
       const queue=Ops.arrangeRegionQueue(region,group.length,{width:sampleSize[0]*1000,depth:sampleSize[2]*1000},
         {gap:100,margin:100,entryX:entry?.x??region.centerX,entryY:entry?.y??region.centerY});
       group.forEach((job,index)=>{job.dockPlace=queue[index];});
@@ -142,6 +143,22 @@
         const departures=Ops.topFirstQueueOrder(queue).map(index=>group[index]);
         departures.forEach((job,index)=>{job.dockEntryOrder=index;job.dockEntryPredecessors=departures.slice(0,index).map(previous=>previous.id);});
       }
+    }
+    const cycleInbound=new Map(['D01','D02'].map(code=>[code,dockJobs.get(code)?.[0]]));
+    const cycleOutbound=outboundDockJobs.get('D03')?.[0];
+    const continuous=!!cycleOutbound&&[...cycleInbound.values()].every(Boolean);
+    const cycleCompleted={입고:0,출고:0};
+    let cycleSerial=0;
+    const dockPosition=place=>({x:place.x/1000,y:floorY+.06+place.layer*(sampleSize[1]+.08),z:place.y/1000});
+    const placeKey=place=>`${place.x}:${place.y}:${place.layer}`;
+    function freeDockPlaces(code,count){
+      const layout=dockLayouts.get(code);if(!layout)return [];
+      const used=new Set(simulation.jobs.filter(job=>job.route?.dock===code&&job.dockPlace&&!job.done)
+        .map(job=>placeKey(job.dockPlace)));
+      return Ops.arrangeRegionQueue(layout.region,Math.max(64,used.size+count+16),
+        {width:sampleSize[0]*1000,depth:sampleSize[2]*1000},
+        {gap:100,margin:100,entryX:layout.entry?.x??layout.region.centerX,entryY:layout.entry?.y??layout.region.centerY})
+        .filter(place=>!used.has(placeKey(place))).slice(0,count);
     }
     function prepare(job,sim) {
       const r=job.route;
@@ -217,18 +234,25 @@
       const place=job.dockPlace,dockPos=place?{x:place.x/1000,y:floorY+.06+place.layer*(sampleSize[1]+.08),z:place.y/1000}
         :{x:dockCenter.x,y:floorY+.06,z:dockCenter.y};
       const bufferPos={x:bufferCenter.x,y:floorY+.06,z:bufferCenter.y};
+      let truckBounds;
+      try{truckBounds=JSON.parse(shell.viewport.dataset.warehouseTruckGroundBounds||'[]').find(value=>value.dock===dock.id);}
+      catch(_){truckBounds=null;}
+      const truckPos=truckBounds?{x:(truckBounds.minX+truckBounds.maxX)/2000,y:floorY+1.2,z:(truckBounds.minZ+truckBounds.maxZ)/2000}
+        :{x:dockCenter.x,y:floorY+1.2,z:dockCenter.y+dock.h/2+1.5};
       const liftUp=move(shuttle.code,[stationLow,stationBase],'리프트 상승'),liftDown=move(shuttle.code,[stationBase,stationLow],'리프트 하강');
       const cvMove={path:inbound?[dockPos,...cvPath]:[bufferPos,...cvPath,dockPos],speed:1.5,label:'컨베이어 운반',
         startOwner:'conveyor',conveyor:true,lanePath:cvPath,clearance:Math.max(slot.boxSize[0],slot.boxSize[2])+.3,conveyorCapacity:5};
       if(inbound){cvMove.entryQueue='CV:'+dock.id;cvMove.entryOrder=job.dockEntryOrder;cvMove.entryInterval=['D01','D02'].includes(dock.id)?5:0;
-        cvMove.entryLimit=['D01','D02'].includes(dock.id)?5:0;cvMove.waitForJobs=job.dockEntryPredecessors;}
+        cvMove.entryLimit=!continuous&&['D01','D02'].includes(dock.id)?5:0;cvMove.waitForJobs=job.dockEntryPredecessors;}
       else cvMove.releaseOnStart=['buffer:'+buffer.id];
       const fork=(height,extra={})=>({actor:amr.code,pose:{forkHeight:height},label:'포크 높이 조정',...extra});
       const handoff=(actor,owner,position,text,effect)=>({...transfer(owner,position,text,effect),actor});
       const shuttleHandoff=(owner,position,text,effect)=>({...handoff(shuttle.code,owner,position,text,effect),duration:1/shuttleSpeedFactor});
+      const truckWait={label:'차량 상차 대기',duration:Infinity};
+      if(continuous&&!inbound&&dock.id==='D03')job.truckWaitStep=truckWait;
       const steps=inbound?[
         transfer('dock:'+dock.id,dockPos,'차량 하차','truck-unload'),cvMove,
-        {...transfer('buffer:'+buffer.id,bufferPos,'버퍼 인계'),acquire:['buffer:'+buffer.id]},move(amr.code,approach,'상차지 이동'),
+        {...transfer('buffer:'+buffer.id,bufferPos,'버퍼 인계'),...(continuous?{actor:amr.code}:{}),acquire:['buffer:'+buffer.id]},move(amr.code,approach,'상차지 이동'),
         fork(1),{...handoff(amr.code,amr.code,amrStart,'AMR 상차'),release:['buffer:'+buffer.id]},fork(.08),move(amr.code,amrPath,'운반'),
         fork(shuttle.height+.01),handoff(amr.code,'station:'+station.id,handoffPos,'스테이션 인계'),fork(.08,{label:'셔틀 인계 대기'}),
         move(shuttle.code,arrive,'셔틀 접근'),shuttleHandoff(shuttle.code,handoffPos,'셔틀 상차'),
@@ -239,7 +263,9 @@
         move(shuttle.code,returnPath,'운반'),liftDown,{...shuttleHandoff('station:'+station.id,handoffPos,'스테이션 인계'),releaseActor:true},move(amr.code,approach,'상차지 이동'),
         fork(shuttle.height+.01),handoff(amr.code,amr.code,amrStart,'AMR 상차'),fork(.08),move(amr.code,amrPath,'운반'),fork(1),
         {...handoff(amr.code,'buffer:'+buffer.id,bufferPos,'버퍼 인계'),acquire:['buffer:'+buffer.id],releaseActor:true,duration:0},cvMove,
-        transfer('dock:'+dock.id,dockPos,'도크 인계'),transfer('truck:'+dock.id,dockPos,'차량 상차','truck-load')
+        transfer('dock:'+dock.id,dockPos,'도크 인계',continuous?'dock-arrival':undefined),
+        ...(continuous&&dock.id==='D03'?[truckWait,{path:[dockPos,truckPos],speed:2,label:'차량 상차 이동'},transfer('truck:'+dock.id,truckPos,'차량 상차','truck-load')]
+          :[transfer('truck:'+dock.id,dockPos,'차량 상차','truck-load')])
       ];
       // Each job owns its rack cell; shared handoff areas are reserved only while cargo occupies them.
       return {reservations:['slot:'+slot.locationCode],
@@ -253,8 +279,10 @@
     }
     const onEvent=(event,job)=>{
       if(event==='truck-unload'||event==='truck-load')job.truckTransferComplete=true;
+      if(event==='dock-arrival')job.dockArrivedAt=simulation.elapsed;
+      if(event==='complete'){job.completedAt=simulation.elapsed;cycleCompleted[job.order.direction]++;}
       const slot=job.slot;
-      if(event==='started')cargoModels.set(job.id,makeLoad(job.id,{...slot,item:data.items.find(i=>i.code===job.itemCode)}));
+      if(event==='started'&&!cargoModels.has(job.id))cargoModels.set(job.id,makeLoad(job.id,{...slot,item:data.items.find(i=>i.code===job.itemCode)}));
       if(event==='putaway'){slot.occupied=true;slot.stock={...slot.location,itemCode:job.itemCode,quantity:job.quantity,status:'normal'};slot.item=data.items.find(item=>item.code===job.itemCode);setSlotInstanceVisible(slot,false);}
       if(event==='pick'){slot.stock.quantity-=job.quantity;slot.occupied=slot.stock.quantity>0;if(!slot.occupied){setSlotInstanceVisible(slot,false);for(const previous of simulation.jobs)if(previous!==job&&previous.cargo?.owner==='rack:'+slot.locationCode)previous.cargo.owner='consumed';}}
     };
@@ -288,6 +316,52 @@
     const initialActors=()=>actors.map(actor=>({...actor,position:{...routePreview.actors.get(actor.code).position}}));
     let simulation=new Ops.Simulation({actors:initialActors(),jobs,prepare,onEvent});
     simulation.advance(0);simulation.paused=true;
+    function cycleDockCount(code){return simulation.jobs.filter(job=>job.order.direction==='입고'&&job.route?.dock===code
+      &&job.cargo?.owner==='dock:'+code).length;}
+    function addInbound(code){
+      const template=cycleInbound.get(code),places=freeDockPlaces(code,4);
+      if(!template)return;
+      for(const place of places){
+        const id=`SIM-${code}-${++cycleSerial}`,position=dockPosition(place);
+        const order={...template.order,code:id,status:'대기',finalLocationCode:''};
+        const job={id,order,route:template.route,itemCode:template.itemCode,quantity:template.quantity,
+          cycle:true,dockPlace:place,dockEntryOrder:(dockJobs.get(code)?.length||0)+cycleSerial,dockEntryPredecessors:[],
+          stage:0,steps:null,status:'대기',elapsed:0,done:false,
+          cargo:{id,owner:'dock:'+code,position,dimensions:sampleSize.slice()}};
+        simulation.jobs.push(job);
+        cargoModels.set(id,makeLoad(id,{...slots[0],boxSize:sampleSize,item:data.items.find(item=>item.code===job.itemCode)}));
+      }
+    }
+    function addOutbound(){
+      if(!cycleOutbound)return;
+      const active=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'&&!job.done).length;
+      if(active>=8)return;
+      const available=slots.filter(slot=>slot.occupied&&slot.stock?.quantity>0&&!simulation.locks.has('slot:'+slot.locationCode));
+      for(const slot of available.slice(0,Math.min(2,8-active))){
+        const id=`SIM-D03-${++cycleSerial}`,order={...cycleOutbound.order,code:id,status:'대기',
+          direction:'출고',routeCode:cycleOutbound.route.code,equipmentCode:cycleOutbound.route.amr,
+          itemCode:slot.stock.itemCode,quantity:1,finalLocationCode:''};
+        simulation.jobs.push({id,order,route:cycleOutbound.route,itemCode:order.itemCode,quantity:1,
+          cycle:true,stage:0,steps:null,status:'대기',elapsed:0,done:false,cargo:null,
+          dockPlace:freeDockPlaces('D03',1)[0]});
+      }
+    }
+    function cycleTick(){
+      if(!continuous||mode!=='orders'||status!=='running')return;
+      const staged=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'
+        &&job.cargo?.owner==='dock:D03'&&job.truckWaitStep&&!job.truckBatchReleased)
+        .sort((a,b)=>(a.dockArrivedAt??Infinity)-(b.dockArrivedAt??Infinity));
+      if(staged.length>=6)for(const job of staged.slice(0,4)){job.truckBatchReleased=true;job.truckWaitStep.duration=0;}
+      for(const code of cycleInbound.keys())if(cycleDockCount(code)<=4)addInbound(code);
+      addOutbound();
+      for(let index=simulation.jobs.length-1;index>=0;index--){
+        const job=simulation.jobs[index];
+        if(!job.done||!(job.cargo?.owner==='consumed'||job.order.direction==='출고'&&simulation.elapsed-(job.completedAt??Infinity)>2))continue;
+        const visual=cargoModels.get(job.id);if(visual){visual.removeFromParent();for(const material of visual.userData.operationMaterials||[]){resources.delete(material);material.dispose();}cargoModels.delete(job.id);}
+        simulation.jobs.splice(index,1);
+      }
+      for(const actor of simulation.actors.values())if(actor.transportHistory.length>40)actor.transportHistory.length=40;
+    }
     let mode=window.WmsSimulationSession?.mode||'orders',pendingMode=null,status='ready';
     const activeActors=()=>mode==='routes'?routePreview.actors:simulation.actors;
     const actorStatus=actor=>actor.job&&status==='stopped'?'정지':actor.job&&status==='ready'?'준비':actor.job&&status==='paused'?'일시정지':actor.status;
@@ -311,6 +385,7 @@
       routePreview=makeRoutePreview();
       routeCargoPreview.reset();
       simulation=new Ops.Simulation({actors:initialActors(),jobs,prepare,onEvent});simulation.advance(0);simulation.paused=true;
+      cycleSerial=0;cycleCompleted.입고=0;cycleCompleted.출고=0;
       mode=nextMode;pendingMode=null;status='ready';previous=null;
     }
     function start(){
@@ -329,6 +404,7 @@
     }
     function settle(){
       if(mode!=='orders'||status!=='running')return;
+      if(continuous)return false;
       const unfinished=simulation.jobs.filter(job=>!job.done);
       if(!unfinished.length){status='completed';simulation.paused=true;}
       else if(unfinished.every(job=>job.status==='컨베이어 투입 상한 대기'||!job.steps&&job.status!=='대기')
@@ -336,7 +412,7 @@
       else if(unfinished.every(job=>!job.steps&&job.status!=='대기')){status='blocked';simulation.paused=true;}
       return simulation.paused;
     }
-    const message=()=>pendingMode?'운행 방식이 변경되었습니다. 재생하면 초기 배치에서 새로 시작합니다.':({ready:mode==='orders'?'준비 · 재생하면 입출고 작업지시를 검사하고 운행합니다.':'준비 · 재생하면 지정 경로의 중심선에 맞춰 시작합니다.',stopped:'정지 · 초기 상태로 돌아왔습니다. 재생하면 처음부터 시작합니다.',running:'운행 중',paused:'일시정지 · 운행 재개 시 현재 위치부터 이어집니다.',limited:'도크별 5개 투입 완료 · 남은 박스와 작업지시는 도크에 대기합니다. 재생하면 처음부터 다시 시작합니다.',blocked:mode==='orders'?(jobs.length?'실행 불가 · 아래 작업별 원인을 확인하세요. 수정한 도면·기준정보는 다시 재생할 때 반영됩니다.':'실행 불가 · 작업지시가 없습니다.'):'실행 불가 · 장비에 이동 가능한 T 또는 GR 경로를 지정하세요.',completed:'완료 · 모든 작업이 끝났습니다. 재생하면 처음부터 다시 실행합니다.'}[status]);
+    const message=()=>pendingMode?'운행 방식이 변경되었습니다. 재생하면 초기 배치에서 새로 시작합니다.':({ready:mode==='orders'?'준비 · 재생하면 입출고 작업지시를 검사하고 운행합니다.':'준비 · 재생하면 지정 경로의 중심선에 맞춰 시작합니다.',stopped:'정지 · 초기 상태로 돌아왔습니다. 재생하면 처음부터 시작합니다.',running:continuous&&mode==='orders'?`순환 운행 중 · D01 ${cycleDockCount('D01')}개 · D02 ${cycleDockCount('D02')}개 · D03 ${simulation.jobs.filter(job=>job.cargo?.owner==='dock:D03').length}개`:'운행 중',paused:'일시정지 · 운행 재개 시 현재 위치부터 이어집니다.',limited:'도크별 5개 투입 완료 · 남은 박스와 작업지시는 도크에 대기합니다. 재생하면 처음부터 다시 시작합니다.',blocked:mode==='orders'?(jobs.length?'실행 불가 · 아래 작업별 원인을 확인하세요. 수정한 도면·기준정보는 다시 재생할 때 반영됩니다.':'실행 불가 · 작업지시가 없습니다.'):'실행 불가 · 장비에 이동 가능한 T 또는 GR 경로를 지정하세요.',completed:'완료 · 모든 작업이 끝났습니다. 재생하면 처음부터 다시 실행합니다.'}[status]);
     const session={
       snapshot:()=>({mode:pendingMode||mode,status:pendingMode?'ready':status,transportState:pendingMode||status==='paused'?'pause':status==='running'?'play':'stop',actionLabel:pendingMode?'재생':({ready:'재생',running:'일시정지',paused:'운행 재개',limited:'다시 재생',blocked:'다시 검사',completed:'완료'}[status]),message:message(),paused:simulation.paused,elapsed:mode==='routes'?routePreview.elapsed:simulation.elapsed,actors:[...activeActors().values()].map(a=>{const model=models.get(a.code);return {id:model.actor.id,code:a.code,position:{...a.position},angle:a.job?(Math.PI/2-a.yaw)*180/Math.PI:model.actor.angle,state:actorStatus(a)};}),jobs:mode==='orders'?simulation.jobs.map(j=>({id:j.id,status:j.status,done:j.done,cargo:j.cargo?{owner:j.cargo.owner,position:{...j.cargo.position}}:null})):[]}),
       toggle(){if(status==='running'&&!pendingMode){status='paused';simulation.paused=true;}else start();previous=null;refresh();},
@@ -353,9 +429,11 @@
       routeStatus.textContent=([...routePreview.actors.values()].map(a=>models.get(a.code).actor.id+' · '+actorStatus(a)).join(' / ')||'평면도에 장비를 배치하고 이동 경로를 지정하세요.')+
         (previewLanes.length?' / 도크 화물 미리보기':' / 화물 미리보기: 사용 가능한 입출고 경로·컨베이어 연결 없음');
       if(!jobs.length&&mode==='orders')list.textContent='작업지시가 없습니다. 지정 경로 반복 주행을 선택할 수 있습니다.';
-      for(const {job,row} of jobRows){const current=simulation.jobs.find(j=>j.id===job.id);row.textContent=job.id+' · '+current.status;}
+      for(const {job,row} of jobRows){const current=simulation.jobs.find(j=>j.id===job.id);row.textContent=job.id+' · '+(current?.status||'완료');}
       shell.viewport.dataset.operationJobs=JSON.stringify(simulation.jobs.map(j=>({id:j.id,route:j.route?.code||j.order.routeCode,direction:j.order.direction,status:j.status,stage:j.stage,total:j.steps?.length||0,done:j.done,conveyorEnteredAt:j.conveyorEnteredAt??null,cargoOwner:j.cargo?.owner||'',cargoPosition:j.cargo?.position||null})));shell.viewport.dataset.operationActors=JSON.stringify([...activeActors().values()].map(a=>({code:a.code,state:a.status,position:a.position,speed:a.speed})));
       shell.viewport.dataset.operationElapsed=(mode==='routes'?routePreview.elapsed:simulation.elapsed).toFixed(3);shell.viewport.dataset.operationInventoryPolicy='simulation-only';
+      shell.viewport.dataset.operationDockQueues=JSON.stringify({D01:cycleDockCount('D01'),D02:cycleDockCount('D02'),D03:simulation.jobs.filter(job=>job.cargo?.owner==='dock:D03').length});
+      shell.viewport.dataset.operationCycleTotals=JSON.stringify(cycleCompleted);
       shell.viewport.dataset.simulationMode=current.mode;shell.viewport.dataset.simulationPaused=String(simulation.paused);shell.viewport.dataset.simulationStatus=current.status;
       window.WmsSimulationSession?.publish();
       const occupied=slots.filter(s=>s.occupied).length,free=slots.length-occupied,rate=slots.length?occupied/slots.length*100:0;
@@ -365,12 +443,12 @@
       set('utilization',rate.toFixed(1)+'%');set('available',free+' 셀');set('alerts',simulation.jobs.filter(j=>!j.done&&!j.steps&&!waitingStatuses.includes(j.status)).length+' 건');
       const util=shellRoot.querySelector('[data-warehouse-kpi="utilization"]');util.querySelector('small').textContent=occupied+' / '+slots.length+' 셀';util.querySelector('i').style.setProperty('--warehouse-kpi-progress',rate+'%');util.querySelector('[role=progressbar]').setAttribute('aria-valuenow',rate.toFixed(1));
       shellRoot.querySelector('[data-warehouse-kpi="available"] small').textContent=(100-rate).toFixed(1)+'%';
-      for(const [kind,prefix] of [['입고','inbound'],['출고','outbound']]){const subset=simulation.jobs.filter(j=>j.order.direction===kind);for(const [suffix,count] of [['complete',subset.filter(j=>j.done).length],['progress',subset.filter(j=>j.steps&&!j.done).length],['request',subset.filter(j=>!j.steps).length]])set(prefix+'-'+suffix,count+' 건');}
+      for(const [kind,prefix] of [['입고','inbound'],['출고','outbound']]){const subset=simulation.jobs.filter(j=>j.order.direction===kind);for(const [suffix,count] of [['complete',cycleCompleted[kind]],['progress',subset.filter(j=>j.steps&&!j.done).length],['request',subset.filter(j=>!j.steps).length]])set(prefix+'-'+suffix,count+' 건');}
     }
     detachSession=window.WmsSimulationSession?.attach(session)||detachSession;refresh();
     return {get elapsed(){return mode==='orders'?simulation.elapsed:routePreview.elapsed;},truckProgress:(dock,direction)=>mode==='orders'?Ops.truckProgress(simulation.jobs.filter(j=>j.route),dock,direction):routeCargoPreview.truckProgress(dock,direction),update(timestamp){
       if(document.hidden){previous=null;return true;}
-      const dt=previous===null?0:Math.min(.1,Math.max(0,(timestamp-previous)/1000));previous=timestamp;if(mode==='orders')simulation.tick(dt);else if(!simulation.paused){routePreview.tick(dt);routeCargoPreview.tick(dt);}const settled=settle();
+      const dt=previous===null?0:Math.min(.1,Math.max(0,(timestamp-previous)/1000));previous=timestamp;if(mode==='orders'){simulation.tick(dt);cycleTick();}else if(!simulation.paused){routePreview.tick(dt);routeCargoPreview.tick(dt);}const settled=settle();
       root.visible=!env.isLevelFocused();
       for(const [code,model] of models){const a=activeActors().get(code);model.group.position.set(a.position.x,a.position.y,a.position.z);model.group.rotation.y=a.job?a.yaw-Math.PI/2:-radians(model.actor.angle);
         const displayed=model.label.userData.amr;displayed.state=actorStatus(a);displayed.equipmentStatus=mode==='routes'||a.enabled?displayed.state:(model.actor.status?.equipmentStatus||'미설정');displayed.currentSpeed=!simulation.paused&&a.job&&/이동|운반|복귀|주행/.test(a.status)?a.speed:0;displayed.transportHistory=a.transportHistory||[];

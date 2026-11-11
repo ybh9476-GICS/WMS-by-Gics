@@ -46,7 +46,7 @@ for (const file of ['data/wms-reference-seed.js','js/floor-plan-reference-store.
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   for(const [,relative] of html.matchAll(/(?:src|href)="([^"]+)"/g)){
     assert.ok(!relative.includes('..')&&!path.isAbsolute(relative)&&!/^\w+:/.test(relative));
-    assert.ok(fs.existsSync(path.join(root,relative)),relative);
+    assert.ok(fs.existsSync(path.join(root,relative.split('?')[0])),relative);
   }
   const editor=fs.readFileSync(path.join(root,'js/floor-plan-editor.js'),'utf8');
   assert.ok(!editor.includes('wms-floor-plan-editor-draft-'));

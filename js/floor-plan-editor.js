@@ -16,7 +16,7 @@ function mount(panel,menu){
  const savedDocumentPlans=new Map();for(const d of documents){const saved=Object.hasOwn(d,'savedPlan')?d.savedPlan:JSON.stringify(d.history.plan);if(saved!==null)savedDocumentPlans.set(d.id,saved);delete d.savedPlan;}
  if(starter&&tabsRaw&&documents.length===1){
   const example=JSON.stringify(fitRackPlan(M.sample())),original=documents[0];
-  if(JSON.stringify(original.history.plan)===example&&savedDocumentPlans.get(original.id)===example){
+  if(JSON.stringify(original.history.plan)===example){
    const plan=fitRackPlan(starter),id='tab'+nextDocumentId++,demo={id,history:new M.History(plan),view:null};
    documents.push(demo);savedDocumentPlans.set(id,JSON.stringify(plan));activeDocumentId=id;history=demo.history;initial=plan;
    loadMessage='기본 창고 탭을 추가했습니다. 기존 연습용 도면은 보존했습니다.';

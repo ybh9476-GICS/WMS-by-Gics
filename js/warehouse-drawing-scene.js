@@ -291,17 +291,17 @@
     let mode=window.WmsSimulationSession?.mode||'orders',pendingMode=null,status='ready';
     const activeActors=()=>mode==='routes'?routePreview.actors:simulation.actors;
     const actorStatus=actor=>actor.job&&status==='stopped'?'정지':actor.job&&status==='ready'?'준비':actor.job&&status==='paused'?'일시정지':actor.status;
-    const panel=shell.viewport.closest('.warehouse-3d-shell').querySelector('.warehouse-3d-bottom-panel');panel.classList.add('has-operations');
+    const panel=shell.viewport.closest('.warehouse-3d-shell').querySelector('.warehouse-3d-bottom-panel');panel.classList.add('has-operations','has-drawing-operations');
     const controls=document.createElement('div');controls.className='warehouse-operation-controls';
     const title=document.createElement('span');title.textContent='도면 물류 흐름 · 모의 운행';
     controls.innerHTML=window.WmsSimulationControls.markup();controls.prepend(title);
     for(const action of ['play','pause','stop'])controls.querySelector('[data-simulation-'+action+']').addEventListener('click',()=>session[action](),{signal});
     const modeSelect=document.createElement('select');modeSelect.setAttribute('aria-label','모의 운행 방식');modeSelect.innerHTML='<option value="orders">입출고 작업지시</option><option value="routes">지정 경로 반복 주행</option>';modeSelect.addEventListener('change',()=>window.WmsSimulationSession.setMode(modeSelect.value),{signal});
     controls.append(modeSelect);panel.append(controls);
-    const stateMessage=document.createElement('div');stateMessage.setAttribute('role','status');panel.append(stateMessage);
+    const stateMessage=document.createElement('div');stateMessage.className='warehouse-operation-state';stateMessage.setAttribute('role','status');panel.append(stateMessage);
     const list=document.createElement('div');list.className='warehouse-operation-list';panel.append(list);
     const jobRows=jobs.map(job=>{const row=document.createElement('div');list.append(row);return {job,row};});
-    const routeStatus=document.createElement('div');panel.append(routeStatus);
+    const routeStatus=document.createElement('div');routeStatus.className='warehouse-operation-route-status';panel.append(routeStatus);
     let previous=null,lastUi=-Infinity;
     function reset(nextMode){
       for(const model of cargoModels.values()){model.removeFromParent();for(const material of model.userData.operationMaterials||[]){resources.delete(material);material.dispose();}}cargoModels.clear();

@@ -400,11 +400,13 @@
 .fp-editor .fp-simulation-panel [data-simulation-stop][aria-pressed="true"] { color: #ffb2b9; background: #552735; }
 .warehouse-operation-controls .wms-simulation-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .warehouse-operation-list { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.warehouse-3d-bottom-panel.has-drawing-operations { min-height: 0; max-height: none; overflow: visible; padding: 6px 10px; }
+.warehouse-3d-bottom-panel.has-drawing-operations .warehouse-operation-controls { margin-bottom: 0; }
+.warehouse-3d-bottom-panel.has-drawing-operations > :is(.warehouse-operation-state, .warehouse-operation-list, .warehouse-operation-route-status) { display: none; }
 .warehouse-drawing-warnings { color: #fcd893; margin: 4px 0; }
 .warehouse-drawing-warnings p { margin: 4px 0; }
 @media (min-width: 901px) {
-    .warehouse-page .warehouse-3d-main:has(.warehouse-drawing-warnings) { grid-template-rows: minmax(0, 1fr) 112px; }
-    .warehouse-page .warehouse-3d-main:has(.warehouse-drawing-warnings) .warehouse-3d-bottom-panel { max-height: 112px; }
+    .warehouse-page .warehouse-3d-main:has(.warehouse-drawing-warnings) { grid-template-rows: minmax(0, 1fr) auto; }
 }
 .warehouse-operation-row { line-height: 1.7; }
 .warehouse-3d-main:has(.has-operations) { grid-template-rows: minmax(0, 1fr) auto; }
@@ -438,6 +440,7 @@
 }
 .warehouse-page .warehouse-3d-main:has(.has-operations) { grid-template-rows: minmax(0, 1fr) auto; }
 .warehouse-page .warehouse-3d-main .warehouse-3d-bottom-panel.has-operations { min-height: 112px; max-height: 145px; }
+.warehouse-page .warehouse-3d-main .warehouse-3d-bottom-panel.has-drawing-operations { min-height: 0; max-height: none; }
 .warehouse-page .warehouse-3d-viewport { height: 100%; min-height: 0; }
 .warehouse-page .warehouse-3d-toolbar,
 .warehouse-page .warehouse-3d-bottom-panel { flex-shrink: 0; }

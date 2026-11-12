@@ -293,6 +293,15 @@
                     if (step.conveyor && step.startOwner && !this.moveConveyor(job, step, job.cargo.position)) {
                         this.release(job, step.acquire); continue;
                     }
+                    if (step.resolvePath && actor) {
+                        const path = step.resolvePath(point(actor.position));
+                        if (!path?.length) {
+                            this.release(job, step.acquire);
+                            job.status = 'AMR 현재 위치 연결 확인';
+                            continue;
+                        }
+                        step.path = path;
+                    }
                     if (actor) { actor.job = job.id; actor.status = step.label; }
                     step.started = true; job.elapsed = 0; step.index = 0;
                     if (step.startOwner) job.cargo.owner = step.startOwner;
@@ -311,7 +320,7 @@
                     const dx = goal.x - moving.position.x, dz = goal.z - moving.position.z;
                     const gap = distance(moving.position, goal);
                     const movingHorizontally = Math.hypot(dx, dz) > 0.001;
-                    if (actor && movingHorizontally) {
+                    if (actor && actor.kind !== 'shuttle' && movingHorizontally) {
                         const wanted = Math.atan2(dx, dz);
                         const turn = Math.atan2(Math.sin(wanted - actor.yaw), Math.cos(wanted - actor.yaw));
                         actor.yaw += Math.sign(turn) * Math.min(Math.abs(turn), dt * (actor.turnRate || 2.4));

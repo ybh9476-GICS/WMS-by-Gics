@@ -121,6 +121,29 @@ assert.equal(limitSim.jobs.filter(job => job.status === '컨베이어 투입 상
 
 const events = [];
 const route = { code: 'IN01', direction: '입고', amr: 'AMR-002', buffer: 'B01', station: 'S02' };
+let approachResolves = 0;
+const waitingAmr = new Ops.Simulation({
+    actors: [{ code: 'FA01', kind: 'amr', enabled: true, online: true, speed: 10,
+        position: { x: 0, y: 0, z: 0 } }],
+    jobs: [{ id: 'FIRST' }, { id: 'NEXT' }],
+    prepare: job => ({ cargo: { owner: 'buffer:B01', position: { x: 0, y: 0, z: 0 } },
+        steps: job.id === 'FIRST' ? [
+            { actor: 'FA01', path: [{ x: 10, y: 0, z: 0 }], label: '버퍼 복귀',
+                acquire: ['station:S01'], release: ['station:S01'], releaseActor: true },
+            { label: '셔틀 적치', duration: 10 }
+        ] : [
+            { actor: 'FA01', path: [{ x: 0, y: 0, z: 0 }, { x: 11, y: 0, z: 0 }],
+                resolvePath: position => { approachResolves++; return [position, { x: 11, y: 0, z: 0 }]; },
+                acquire: ['station:S01'], label: '버퍼 상차지 이동' }
+        ] })
+});
+for (let i = 0; i < 120 && !waitingAmr.jobs[1].steps?.[0].started; i++) waitingAmr.tick(0.05);
+assert.ok(waitingAmr.jobs[1].steps[0].started, 'The next job starts after the first AMR returns.');
+assert.equal(waitingAmr.jobs[0].done, false, 'AMR becomes available before the shuttle finishes its job.');
+assert.equal(waitingAmr.jobs[1].steps[0].path[0].x, 10,
+    'Waiting AMR uses its actual buffer position, not the station position saved at planning time.');
+assert.equal(approachResolves, 1, 'The route resolves once when the waiting step actually starts.');
+assert.ok(waitingAmr.actors.get('FA01').position.x >= 10, 'AMR does not backtrack to the station.');
 const sim = new Ops.Simulation({
     actors: [{ code: route.amr, kind: 'amr', enabled: true, online: true, speed: 1, radius: 0.4, position: { x: 0, y: 0, z: 0 } }],
     jobs: [1, 2].map(i => ({ id: `JOB${i}`, route, itemCode: 'ITEM', quantity: 3 })),
@@ -207,6 +230,23 @@ function reservationOrder(fairAcquire) {
 assert.deepEqual(reservationOrder(false), ['OUT1', 'OUT2', 'IN']);
 assert.deepEqual(reservationOrder(true), ['OUT1', 'IN', 'OUT2']);
 const track = (x, y, z, endX, endZ) => [{ x, y, z }, { x: endX, y, z: endZ }];
+const cornerPath = [{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }, { x: 2, y: 0, z: 2 }];
+const fourWaySim = new Ops.Simulation({
+    actors: [{ code: 'SH4', kind: 'shuttle', enabled: true, online: true, speed: 2,
+        yaw: 0, position: cornerPath[0] },
+        { code: 'FA4', kind: 'amr', enabled: true, online: true, speed: 2,
+            yaw: 0, position: cornerPath[0] }],
+    jobs: [{ id: 'SH4' }, { id: 'FA4' }],
+    prepare: job => ({ cargo: { position: cornerPath[0] },
+        steps: [{ actor: job.id, path: cornerPath, label: '운반' }] })
+});
+fourWaySim.tick(0.1);
+assert.ok(fourWaySim.actors.get('SH4').position.x > 0, '4-way shuttle moves immediately without an in-place turn.');
+assert.equal(fourWaySim.actors.get('SH4').yaw, 0);
+assert.equal(fourWaySim.actors.get('FA4').status, '회전', 'AMR still turns before changing direction.');
+for (let index = 0; index < 80; index++) fourWaySim.tick(0.05);
+assert.ok(fourWaySim.actors.get('SH4').position.z > 0, '4-way shuttle passes the corner.');
+assert.equal(fourWaySim.actors.get('SH4').yaw, 0, '4-way shuttle keeps its body orientation across the corner.');
 const shuttleTracks = [track(0, 0, 0, 4, 0), track(2, 0, -2, 2, 2), track(0, 0, 8, 4, 8), track(0, 2, 0, 4, 0)];
 const routeKeys = shuttleTracks.map(path => Ops.shuttleRouteResources([path]));
 assert.ok(routeKeys[0].some(key => routeKeys[1].includes(key)), 'Crossing footprints on one level must conflict.');

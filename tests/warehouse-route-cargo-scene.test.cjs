@@ -81,8 +81,8 @@ assert.equal(session.snapshot().mode,'orders');
 orderMount.update(0);
 const initialSpeeds=JSON.parse(orderViewport.dataset.operationActors);
 assert.equal(initialSpeeds.find(actor=>actor.code==='AMR-001').speed,5);
-assert.equal(initialSpeeds.find(actor=>actor.code==='SHUTTLE-001').speed,6.5,
- 'Shuttle travel and lift use 130% of the configured speed without changing AMR speed.');
+assert.equal(initialSpeeds.find(actor=>actor.code==='SHUTTLE-001').speed,9.75,
+ 'Shuttle travel and lift are 50% faster than the previous 130% setting without changing AMR speed.');
 assert.equal(JSON.parse(orderViewport.dataset.operationJobs).filter(job=>job.cargoOwner==='dock:D01').length,7,
  'Inbound cartons are already stacked at the dock before Play.');
 assert.equal(orderScene.children.filter(child=>child.name.startsWith('operation-pallet-JOB')&&child.visible).length,7);
@@ -91,21 +91,25 @@ for(let time=0;time<=2200;time+=100)orderMount.update(time);
 const dockJobs=JSON.parse(orderViewport.dataset.operationJobs);
 assert.ok(dockJobs.filter(job=>job.cargoOwner==='dock:D01').length>=3,'Real work orders unload into a visible dock queue.');
 assert.ok(dockJobs.some(job=>job.cargoOwner==='conveyor'),'The upper dock carton enters the conveyor first.');
-let stored=false,storedAt=0,stationWaitJobId=null,shuttlePickedUp=false;
-let maxStationPenetration=-Infinity;
+let stored=false,storedAt=0,stationWaitJobId=null,shuttlePickedUp=false,returnedBeforePickup=false;
+let maxStationPenetration=-Infinity,shuttleMovedX=false,shuttleMovedZ=false;
 for(let time=2300;time<=90000;time+=100){orderMount.update(time);
  const amr=JSON.parse(orderViewport.dataset.operationActors).find(actor=>actor.code==='AMR-001');
+ const shuttle=session.snapshot().actors.find(actor=>actor.code==='SHUTTLE-001');
+ assert.equal(shuttle.angle,actors[1].angle,'4-way shuttle keeps its drawn orientation throughout a work order.');
+ shuttleMovedX||=shuttle.position.x>9.2;shuttleMovedZ||=shuttle.position.z<6.9;
  maxStationPenetration=Math.max(maxStationPenetration,amr.position.x);
  const currentJobs=JSON.parse(orderViewport.dataset.operationJobs);
  const waiting=currentJobs.find(job=>job.cargoOwner==='station:S01');
- if(!stationWaitJobId&&waiting&&amr.state==='셔틀 인계 대기')stationWaitJobId=waiting.id;
+ if(!stationWaitJobId&&waiting&&amr.state==='복귀')stationWaitJobId=waiting.id;
  const waited=stationWaitJobId&&currentJobs.find(job=>job.id===stationWaitJobId);
- if(waited?.cargoOwner==='station:S01')assert.equal(amr.state,'셔틀 인계 대기',
-  'AMR must remain assigned and waiting at the station until shuttle pickup.');
+ if(waited?.cargoOwner==='station:S01'&&amr.state==='복귀')returnedBeforePickup=true;
  if(waited?.cargoOwner==='SHUTTLE-001')shuttlePickedUp=true;
  stored||=JSON.parse(orderViewport.dataset.operationJobs).some(job=>job.cargoOwner.startsWith('rack:'));if(stored){storedAt=time;break;}}
 assert.ok(stored,'A work-order carton reaches the rack.');
-assert.ok(stationWaitJobId&&shuttlePickedUp,'Shuttle pickup occurs after AMR waits outside the station.');
+assert.ok(shuttleMovedX&&shuttleMovedZ,'4-way shuttle travels along both axes without rotating.');
+assert.ok(stationWaitJobId&&shuttlePickedUp&&returnedBeforePickup,
+ 'AMR returns toward the buffer as soon as it unloads, before shuttle pickup.');
 assert.ok(maxStationPenetration+Math.hypot(.5,.5)/2<8,'Fork AMR must stay wholly outside the station at x=8.');
 assert.ok(slots.some(slot=>slot.occupied),'Rack inventory changes within the simulation.');
 let limited=false;
@@ -118,6 +122,38 @@ assert.equal(entries.filter(Number.isFinite).length,5);
 entries.filter(Number.isFinite).slice(1).forEach((entry,index)=>assert.ok(entry-entries[index]>=4.999,
  'D01 cartons enter the conveyor at least five seconds apart.'));
 orderMount.dispose();
+const waitingSlots=slots.slice(0,2).map(slot=>({...slot,occupied:false,stock:null}));
+const waitingData={...orderData,meta:{...orderData.meta,actors:[{...actors[0],x:7},actors[1]]},
+ workOrders:workOrders.slice(0,2).map(order=>({...order,finalLocationCode:undefined}))};
+const waitingViewport=new Element();waitingViewport.closest=()=>shellRoot;
+const WaitingSimulation=Ops.Simulation;let waitingSimulation;
+Ops.Simulation=class extends WaitingSimulation{constructor(options){super(options);waitingSimulation=this;}};
+const waitingMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:waitingData,scene:new THREE.Group(),
+ shell:{viewport:waitingViewport,zoneButtons:new Element()},
+ rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:waitingSlots}]});
+Ops.Simulation=WaitingSimulation;
+waitingMount.update(0);
+session.play();waitingMount.update(100);
+const plannedApproach=waitingSimulation.jobs[1].steps?.[3]?.path;
+assert.ok(plannedApproach?.[0].x>6,'The next AMR approach was planned from its initial position near the station.');
+let startedApproach;
+for(let time=200;time<=120000;time+=100){waitingMount.update(time);
+ const next=waitingSimulation.jobs[1];
+ if(next.steps?.[3]?.started){startedApproach=next.steps[3].path;break;}}
+assert.ok(startedApproach,'The next AMR job starts after the station becomes available.');
+assert.ok(startedApproach[0].x<5,'The next approach begins at the buffer instead of returning to the station.');
+waitingMount.dispose();
+const levelSlots=Array.from({length:10},(_,index)=>({...slots[0],locationCode:`LEVEL-${index+1}`,
+ level:index+1,position:[0,index+.1,.08],palletBaseY:index+.1,occupied:false,stock:null}));
+const levelOrders=levelSlots.map((_,index)=>({...workOrders[0],code:`LEVEL-JOB-${index+1}`}));
+const levelData={...orderData,workOrders:levelOrders};
+const levelViewport=new Element();levelViewport.closest=()=>shellRoot;
+const levelMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:levelData,scene:new THREE.Group(),
+ shell:{viewport:levelViewport,zoneButtons:new Element()},rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:levelSlots}]});
+assert.deepEqual(new Set(levelOrders.map(order=>Number(order.finalLocationCode.split('-').at(-1)))),
+ new Set(Array.from({length:10},(_,index)=>index+1)),
+ 'Initial inbound work orders must be spread across every reachable rack level.');
+levelMount.dispose();
 const outboundObjects=orderObjects.map(object=>object.id==='CV01'?{...object,flowDirection:'reverse'}:
  object.id==='D01'?{...object,id:'D03'}:object);
 const outboundSlot={...slots[0],occupied:true,stock:{itemCode:'ITEM1',quantity:1,status:'normal'}};
@@ -167,11 +203,18 @@ const cycleData={...orderData,meta:{...orderData.meta,plan:{objects:cycleObjects
 const cycleScene=new THREE.Group(),cycleViewport=new Element();cycleViewport.closest=()=>shellRoot;
 const cycleMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:cycleData,scene:cycleScene,
  shell:{viewport:cycleViewport,zoneButtons:new Element()},rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:cycleSlots}]});
-session.play();let replenished=false,truckBatch=false,maxOnBelt=0,firstTruckAt=null,secondTruckAt=null;
+session.play();let replenished=false,truckBatch=false,maxOnBelt=0,maxBuffer=0,firstTruckAt=null,secondTruckAt=null;
 for(let time=0;time<=300000;time+=100){cycleMount.update(time);
  const jobs=JSON.parse(cycleViewport.dataset.operationJobs);
  const queues=JSON.parse(cycleViewport.dataset.operationDockQueues);
  maxOnBelt=Math.max(maxOnBelt,jobs.filter(job=>job.cargoOwner==='conveyor').length);
+ for(const code of ['B01','B03']){
+  const atBuffer=jobs.filter(job=>job.cargoOwner==='buffer:'+code);
+  maxBuffer=Math.max(maxBuffer,atBuffer.length);
+  assert.ok(atBuffer.length<=4,code+' must never hold more than four pallets.');
+  assert.equal(new Set(atBuffer.map(job=>`${job.cargoPosition.x.toFixed(3)}:${job.cargoPosition.z.toFixed(3)}`)).size,
+   atBuffer.length,'Pallets at '+code+' must occupy distinct places.');
+ }
  replenished||=jobs.some(job=>job.id.startsWith('SIM-D01-'))&&jobs.some(job=>job.id.startsWith('SIM-D02-'));
  const loaded=JSON.parse(cycleViewport.dataset.operationCycleTotals).출고;
  if(loaded>=4)firstTruckAt??=time;
@@ -182,6 +225,7 @@ assert.ok(replenished,'D01 and D02 receive simulation-only replenishment after t
 assert.ok(firstTruckAt!==null&&secondTruckAt>firstTruckAt,'D03 loads multiple four-box batches and keeps cycling.');
 assert.equal(session.snapshot().status,'running','Work-order simulation stays running after initial jobs finish.');
 assert.ok(maxOnBelt<=5,'No more than five cartons occupy the conveyor at once.');
+assert.ok(maxBuffer>=2,'The conveyor refills a buffer while an AMR handles another pallet.');
 const beforePause=cycleViewport.dataset.operationElapsed,pausedQueues=cycleViewport.dataset.operationDockQueues;
 session.pause();cycleMount.update(900100);cycleMount.update(910000);
 assert.equal(cycleViewport.dataset.operationElapsed,beforePause,'Pause freezes the continuous clock.');

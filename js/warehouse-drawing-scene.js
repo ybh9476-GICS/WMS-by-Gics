@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const M=window.WmsFloorPlanModel, Ops=window.WmsWarehouseOperations;
-  const shuttleSpeedFactor=1.3;
+  const shuttleSpeedFactor=1.95;
   const radians=angle=>angle*Math.PI/180;
   const center=o=>({x:o.x+o.w/2,y:o.y+o.h/2});
   function tunnels(plan) {
@@ -105,7 +105,15 @@
         }
       }
     }
-    const slots=rackEntries.flatMap(r=>r.slots);
+    const slots=rackEntries.flatMap(r=>r.slots),levelUseCounts=new Map();
+    const balancedChoice=(candidates,direction)=>{
+      const levels=[...new Set(candidates.map(candidate=>candidate.slot.level))];
+      const fewest=Math.min(...levels.map(level=>levelUseCounts.get(direction+':'+level)||0));
+      const eligible=levels.filter(level=>(levelUseCounts.get(direction+':'+level)||0)===fewest);
+      const level=eligible[Math.floor(Math.random()*eligible.length)];
+      const peers=candidates.filter(candidate=>candidate.slot.level===level);
+      return peers[Math.floor(Math.random()*peers.length)];
+    };
     shell.viewport.dataset.amrCount=String(env.amrFleet.length);
     shell.viewport.dataset.shuttleCount=String(env.shuttleFleet.length);
     shell.viewport.dataset.shuttleLiftCount=String(lifts.size);
@@ -123,7 +131,7 @@
     const byId=id=>plan.objects.find(o=>o.id===id);
     const point=(n,h=floorY)=>({x:n.x/1000,y:h,z:n.y/1000});
     const routePoints=(g,a,b,h=floorY)=>Ops.pathBetween(g,a,b).map(n=>point(n,h));
-    const move=(actor,path,label)=>({actor,path,label});
+    const move=(actor,path,label,extra={})=>({actor,path,label,...extra});
     const transfer=(owner,position,label,effect)=>({owner,position,label,effect,duration:1});
     const jobs=data.workOrders.filter(w=>!['완료','취소'].includes(w.status)).map(w=>({id:w.code,order:w,route:data.operationRoutes.find(r=>r.enabled&&r.code===w.routeCode),itemCode:w.itemCode,quantity:w.quantity}));
     const dockJobs=new Map(),outboundDockJobs=new Map(),dockLayouts=new Map(),sampleSize=slots[0]?.boxSize||[.8,.7,.8];
@@ -178,11 +186,15 @@
       const connectedCvPath=routePoints(cv,inbound?cd:cb,inbound?cb:cd,floorY+1),amrPath=routePoints(ag,inbound?ab:as,inbound?as:ab);
       if(!connectedCvPath.length)return {error:`${inbound?dock.id:buffer.id} → ${inbound?buffer.id:dock.id}: CV 연결·진행 방향 확인`};
       if(!amrPath.length)return {error:`${amr.routeId}: ${buffer.id} ↔ ${station.id} 외부 인계 지점 연결·${amr.id} 장비 폭 확인`};
-      const amrState=sim.actors.get(amr.code),start=nearest(ag,{x:amrState.position.x,y:amrState.position.z});
-      if(!start)return {error:amr.id+': 지정 경로에 이동 가능한 구간이 없습니다.'};
-      const approach=routePoints(ag,start,inbound?ab:as);
+      const amrState=sim.actors.get(amr.code);
+      const approachFrom=position=>{
+        const start=nearest(ag,{x:position.x,y:position.z});
+        if(!start)return [];
+        const route=routePoints(ag,start,inbound?ab:as);
+        return route.length?[{...position},...route]:[];
+      };
+      const approach=approachFrom(amrState.position);
       if(!approach.length)return {error:'AMR 현재 위치 연결 확인'};
-      approach.unshift({...amrState.position});
       const choices=[],failures=new Set();let failureStage=0;
       // Report the furthest usable candidate, so unrelated empty racks do not obscure a precise CV error.
       const fail=(stage,reason)=>{if(stage>failureStage){failures.clear();failureStage=stage;}if(stage===failureStage)failures.add(reason);};
@@ -222,11 +234,7 @@
         }
       }
       if(!choices.length)return {error:[...failures].join(' / ')||`${station.id}: 셔틀 설비의 사용·통신·속도·GR 지정 및 랙 로케이션 배치 확인`};
-      const stationCenter=center(station);
-      choices.sort((a,b)=>a.slot.level-b.slot.level
-        || Math.hypot(a.world.x-stationCenter.x,a.world.z-stationCenter.y)
-          -Math.hypot(b.world.x-stationCenter.x,b.world.z-stationCenter.y));
-      const chosen=choices[0],{slot,world,shuttle,arrive,path,h,cvPath}=chosen;
+      const chosen=balancedChoice(choices,r.direction),{slot,world,shuttle,arrive,path,h,cvPath}=chosen;
       job.slot=slot;job.shuttle=shuttle.code;job.order.finalLocationCode=slot.locationCode;
       const stationBase=path[0],stationLow={...stationBase,y:floorY},rackNode=path[path.length-1],rackPosition={x:world.x,y:world.y,z:world.z};
       const returnPath=path.slice().reverse(),amrStart=amrPath[0],amrEnd=amrPath[amrPath.length-1];
@@ -234,18 +242,34 @@
       const dockCenter=center(dock),bufferCenter=center(buffer);
       const place=job.dockPlace,dockPos=place?{x:place.x/1000,y:floorY+.06+place.layer*(sampleSize[1]+.08),z:place.y/1000}
         :{x:dockCenter.x,y:floorY+.06,z:dockCenter.y};
-      const bufferPos={x:bufferCenter.x,y:floorY+.06,z:bufferCenter.y};
+      const bufferBounds=M.bounds(buffer),bufferRegion={minX:bufferBounds.x*1000,maxX:(bufferBounds.x+bufferBounds.w)*1000,
+        minY:bufferBounds.y*1000,maxY:(bufferBounds.y+bufferBounds.h)*1000,
+        centerX:bufferCenter.x*1000,centerY:bufferCenter.y*1000};
+      const footprint={width:slot.boxSize[0]*1000,depth:slot.boxSize[2]*1000};
+      const physicalPlaces=Ops.arrangeRegionQueue(bufferRegion,1,footprint,{gap:100,margin:100});
+      const bufferCapacity=Math.min(4,physicalPlaces[0]?.perLayer||1);
+      const bufferQueue=Ops.arrangeRegionQueue(bufferRegion,bufferCapacity,footprint,{gap:100,margin:100});
+      const bufferOrder=sim.jobs.filter(other=>other.route?.buffer===buffer.id).indexOf(job);
+      const bufferSlot=Math.max(0,bufferOrder)%bufferCapacity,bufferPlace=bufferQueue[bufferSlot];
+      const bufferPos={x:bufferPlace.x/1000,y:floorY+.06,z:bufferPlace.y/1000};
+      const bufferLock='buffer:'+buffer.id+':'+bufferSlot,stationLock='station:'+station.id;
       let truckBounds;
       try{truckBounds=JSON.parse(shell.viewport.dataset.warehouseTruckGroundBounds||'[]').find(value=>value.dock===dock.id);}
       catch(_){truckBounds=null;}
       const truckPos=truckBounds?{x:(truckBounds.minX+truckBounds.maxX)/2000,y:floorY+1.2,z:(truckBounds.minZ+truckBounds.maxZ)/2000}
         :{x:dockCenter.x,y:floorY+1.2,z:dockCenter.y+dock.h/2+1.5};
       const liftUp=move(shuttle.code,[stationLow,stationBase],'리프트 상승'),liftDown=move(shuttle.code,[stationBase,stationLow],'리프트 하강');
+      const shuttleLocks=['lift:'+station.id,...Ops.shuttleRouteResources([arrive,path,returnPath,
+        [stationLow,stationBase]],{radius:Math.max(shuttle.w,shuttle.h)/2+.1})];
+      // An outbound trip must claim its destination station with the rail, so it cannot
+      // wait for a station held by an inbound trip while blocking that trip's rail.
+      const shuttleApproach={...move(shuttle.code,arrive,'셔틀 접근'),
+        acquire:inbound?shuttleLocks:[...shuttleLocks,stationLock],fairAcquire:inbound};
       const cvMove={path:inbound?[dockPos,...cvPath]:[bufferPos,...cvPath,dockPos],speed:1.5,label:'컨베이어 운반',
         startOwner:'conveyor',conveyor:true,lanePath:cvPath,clearance:Math.max(slot.boxSize[0],slot.boxSize[2])+.3,conveyorCapacity:5};
       if(inbound){cvMove.entryQueue='CV:'+dock.id;cvMove.entryOrder=job.dockEntryOrder;cvMove.entryInterval=['D01','D02'].includes(dock.id)?5:0;
         cvMove.entryLimit=!continuous&&['D01','D02'].includes(dock.id)?5:0;cvMove.waitForJobs=job.dockEntryPredecessors;}
-      else cvMove.releaseOnStart=['buffer:'+buffer.id];
+      else cvMove.releaseOnStart=[bufferLock];
       const fork=(height,extra={})=>({actor:amr.code,pose:{forkHeight:height},label:'포크 높이 조정',...extra});
       const handoff=(actor,owner,position,text,effect)=>({...transfer(owner,position,text,effect),actor});
       const shuttleHandoff=(owner,position,text,effect)=>({...handoff(shuttle.code,owner,position,text,effect),duration:1/shuttleSpeedFactor});
@@ -253,17 +277,22 @@
       if(continuous&&!inbound&&dock.id==='D03')job.truckWaitStep=truckWait;
       const steps=inbound?[
         transfer('dock:'+dock.id,dockPos,'차량 하차','truck-unload'),cvMove,
-        {...transfer('buffer:'+buffer.id,bufferPos,'버퍼 인계'),...(continuous?{actor:amr.code}:{}),acquire:['buffer:'+buffer.id]},move(amr.code,approach,'상차지 이동'),
-        fork(1),{...handoff(amr.code,amr.code,amrStart,'AMR 상차'),release:['buffer:'+buffer.id]},fork(.08),move(amr.code,amrPath,'운반'),
-        fork(shuttle.height+.01),handoff(amr.code,'station:'+station.id,handoffPos,'스테이션 인계'),fork(.08,{label:'셔틀 인계 대기'}),
-        move(shuttle.code,arrive,'셔틀 접근'),shuttleHandoff(shuttle.code,handoffPos,'셔틀 상차'),
-        {actor:amr.code,label:'인계 완료',releaseActor:true,duration:0},liftUp,move(shuttle.code,path,'적치 이동'),
-        shuttleHandoff('rack:'+slot.locationCode,rackPosition,'적치','putaway'),move(shuttle.code,returnPath,'복귀'),liftDown
+        {...transfer('buffer:'+buffer.id,bufferPos,'버퍼 인계'),acquire:[bufferLock]},
+        {...move(amr.code,approach,'상차지 이동'),resolvePath:approachFrom,acquire:[stationLock]},
+        fork(1),handoff(amr.code,amr.code,amrStart,'AMR 상차'),fork(.08),
+        {...move(amr.code,amrPath,'운반'),releaseOnStart:[bufferLock]},
+        fork(shuttle.height+.01),handoff(amr.code,'station:'+station.id,handoffPos,'스테이션 인계'),fork(.08),
+        move(amr.code,amrPath.slice().reverse(),'복귀',{releaseActor:true}),
+        shuttleApproach,{...shuttleHandoff(shuttle.code,handoffPos,'셔틀 상차'),release:[stationLock]},
+        liftUp,move(shuttle.code,path,'적치 이동'),
+        shuttleHandoff('rack:'+slot.locationCode,rackPosition,'적치','putaway'),move(shuttle.code,returnPath,'복귀'),
+        {...liftDown,release:shuttleLocks,releaseActor:true}
       ]:[
-        move(shuttle.code,arrive,'셔틀 접근'),liftUp,move(shuttle.code,path,'피킹 이동'),shuttleHandoff(shuttle.code,rackNode,'피킹','pick'),
-        move(shuttle.code,returnPath,'운반'),liftDown,{...shuttleHandoff('station:'+station.id,handoffPos,'스테이션 인계'),releaseActor:true},move(amr.code,approach,'상차지 이동'),
-        fork(shuttle.height+.01),handoff(amr.code,amr.code,amrStart,'AMR 상차'),fork(.08),move(amr.code,amrPath,'운반'),fork(1),
-        {...handoff(amr.code,'buffer:'+buffer.id,bufferPos,'버퍼 인계'),acquire:['buffer:'+buffer.id],releaseActor:true,duration:0},cvMove,
+        shuttleApproach,liftUp,move(shuttle.code,path,'피킹 이동'),shuttleHandoff(shuttle.code,rackNode,'피킹','pick'),
+        move(shuttle.code,returnPath,'운반'),liftDown,{...shuttleHandoff('station:'+station.id,handoffPos,'스테이션 인계'),
+          acquire:[stationLock],release:shuttleLocks,releaseActor:true},move(amr.code,approach,'상차지 이동',{resolvePath:approachFrom}),
+        fork(shuttle.height+.01),{...handoff(amr.code,amr.code,amrStart,'AMR 상차'),release:[stationLock]},fork(.08),move(amr.code,amrPath,'운반'),fork(1),
+        {...handoff(amr.code,'buffer:'+buffer.id,bufferPos,'버퍼 인계'),acquire:[bufferLock],releaseActor:true,duration:0},cvMove,
         transfer('dock:'+dock.id,dockPos,'도크 인계',continuous?'dock-arrival':undefined),
         ...(continuous&&dock.id==='D03'?[truckWait,{path:[dockPos,truckPos],speed:2,label:'차량 상차 이동'},transfer('truck:'+dock.id,truckPos,'차량 상차','truck-load')]
           :[transfer('truck:'+dock.id,dockPos,'차량 상차','truck-load')])
@@ -283,7 +312,10 @@
       if(event==='dock-arrival')job.dockArrivedAt=simulation.elapsed;
       if(event==='complete'){job.completedAt=simulation.elapsed;cycleCompleted[job.order.direction]++;}
       const slot=job.slot;
-      if(event==='started'&&!cargoModels.has(job.id))cargoModels.set(job.id,makeLoad(job.id,{...slot,item:data.items.find(i=>i.code===job.itemCode)}));
+      if(event==='started'){
+        const key=job.order.direction+':'+slot.level;levelUseCounts.set(key,(levelUseCounts.get(key)||0)+1);
+        if(!cargoModels.has(job.id))cargoModels.set(job.id,makeLoad(job.id,{...slot,item:data.items.find(i=>i.code===job.itemCode)}));
+      }
       if(event==='putaway'){slot.occupied=true;slot.stock={...slot.location,itemCode:job.itemCode,quantity:job.quantity,status:'normal'};slot.item=data.items.find(item=>item.code===job.itemCode);setSlotInstanceVisible(slot,false);}
       if(event==='pick'){slot.stock.quantity-=job.quantity;slot.occupied=slot.stock.quantity>0;if(!slot.occupied){setSlotInstanceVisible(slot,false);for(const previous of simulation.jobs)if(previous!==job&&previous.cargo?.owner==='rack:'+slot.locationCode)previous.cargo.owner='consumed';}}
     };
@@ -337,9 +369,13 @@
       if(!cycleOutbound)return;
       const active=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'&&!job.done).length;
       if(active>=8)return;
+      const pending=new Set(simulation.jobs.filter(job=>!job.steps&&job.sourceLocationCode).map(job=>job.sourceLocationCode));
       const available=slots.filter(slot=>slot.occupied&&slot.stock?.quantity>0
-        &&!['hold','defect'].includes(slot.stock.status)&&!simulation.locks.has('slot:'+slot.locationCode));
-      for(const slot of available.slice(0,Math.min(2,8-active))){
+        &&!['hold','defect'].includes(slot.stock.status)&&!simulation.locks.has('slot:'+slot.locationCode)
+        &&!pending.has(slot.locationCode)).map(slot=>({slot}));
+      for(let index=0;index<Math.min(2,8-active)&&available.length;index++){
+        const chosen=balancedChoice(available,'출고'),slot=chosen.slot;
+        available.splice(available.indexOf(chosen),1);
         const id=`SIM-D03-${++cycleSerial}`,order={...cycleOutbound.order,code:id,status:'대기',
           direction:'출고',routeCode:cycleOutbound.route.code,equipmentCode:cycleOutbound.route.amr,
           itemCode:slot.stock.itemCode,quantity:slot.stock.quantity,finalLocationCode:''};
@@ -392,6 +428,7 @@
       env.resetSimulationExtras?.();
       routePreview=makeRoutePreview();
       routeCargoPreview.reset();
+      levelUseCounts.clear();
       simulation=new Ops.Simulation({actors:initialActors(),jobs,prepare,onEvent});simulation.advance(0);simulation.paused=true;
       cycleSerial=0;cycleCompleted.입고=0;cycleCompleted.출고=0;
       mode=nextMode;pendingMode=null;status='ready';previous=null;
@@ -422,7 +459,7 @@
     }
     const message=()=>pendingMode?'운행 방식이 변경되었습니다. 재생하면 초기 배치에서 새로 시작합니다.':({ready:mode==='orders'?'준비 · 재생하면 입출고 작업지시를 검사하고 운행합니다.':'준비 · 재생하면 지정 경로의 중심선에 맞춰 시작합니다.',stopped:'정지 · 초기 상태로 돌아왔습니다. 재생하면 처음부터 시작합니다.',running:continuous&&mode==='orders'?`순환 운행 중 · D01 ${cycleDockCount('D01')}개 · D02 ${cycleDockCount('D02')}개 · D03 ${simulation.jobs.filter(job=>job.cargo?.owner==='dock:D03').length}개`:'운행 중',paused:'일시정지 · 운행 재개 시 현재 위치부터 이어집니다.',limited:'도크별 5개 투입 완료 · 남은 박스와 작업지시는 도크에 대기합니다. 재생하면 처음부터 다시 시작합니다.',blocked:mode==='orders'?(jobs.length?'실행 불가 · 아래 작업별 원인을 확인하세요. 수정한 도면·기준정보는 다시 재생할 때 반영됩니다.':'실행 불가 · 작업지시가 없습니다.'):'실행 불가 · 장비에 이동 가능한 T 또는 GR 경로를 지정하세요.',completed:'완료 · 모든 작업이 끝났습니다. 재생하면 처음부터 다시 실행합니다.'}[status]);
     const session={
-      snapshot:()=>({mode:pendingMode||mode,status:pendingMode?'ready':status,transportState:pendingMode||status==='paused'?'pause':status==='running'?'play':'stop',actionLabel:pendingMode?'재생':({ready:'재생',running:'일시정지',paused:'운행 재개',limited:'다시 재생',blocked:'다시 검사',completed:'완료'}[status]),message:message(),paused:simulation.paused,elapsed:mode==='routes'?routePreview.elapsed:simulation.elapsed,actors:[...activeActors().values()].map(a=>{const model=models.get(a.code);return {id:model.actor.id,code:a.code,position:{...a.position},angle:a.job?(Math.PI/2-a.yaw)*180/Math.PI:model.actor.angle,state:actorStatus(a)};}),jobs:mode==='orders'?simulation.jobs.map(j=>({id:j.id,status:j.status,done:j.done,cargo:j.cargo?{owner:j.cargo.owner,position:{...j.cargo.position}}:null})):[]}),
+      snapshot:()=>({mode:pendingMode||mode,status:pendingMode?'ready':status,transportState:pendingMode||status==='paused'?'pause':status==='running'?'play':'stop',actionLabel:pendingMode?'재생':({ready:'재생',running:'일시정지',paused:'운행 재개',limited:'다시 재생',blocked:'다시 검사',completed:'완료'}[status]),message:message(),paused:simulation.paused,elapsed:mode==='routes'?routePreview.elapsed:simulation.elapsed,actors:[...activeActors().values()].map(a=>{const model=models.get(a.code);return {id:model.actor.id,code:a.code,position:{...a.position},angle:model.actor.kind==='SH'?model.actor.angle:a.job?(Math.PI/2-a.yaw)*180/Math.PI:model.actor.angle,state:actorStatus(a)};}),jobs:mode==='orders'?simulation.jobs.map(j=>({id:j.id,status:j.status,done:j.done,cargo:j.cargo?{owner:j.cargo.owner,position:{...j.cargo.position}}:null})):[]}),
       toggle(){if(status==='running'&&!pendingMode){status='paused';simulation.paused=true;}else start();previous=null;refresh();},
       play(){if(status==='running'&&!pendingMode)return;if(['completed','limited'].includes(status)&&!pendingMode)reset(mode);start();previous=null;refresh();},
       pause(){if(status!=='running'||pendingMode)return;status='paused';simulation.paused=true;previous=null;refresh();},
@@ -458,7 +495,7 @@
       if(document.hidden){previous=null;return true;}
       const dt=previous===null?0:Math.min(.1,Math.max(0,(timestamp-previous)/1000));previous=timestamp;if(mode==='orders'){simulation.tick(dt);cycleTick();}else if(!simulation.paused){routePreview.tick(dt);routeCargoPreview.tick(dt);}const settled=settle();
       root.visible=!env.isLevelFocused();
-      for(const [code,model] of models){const a=activeActors().get(code);model.group.position.set(a.position.x,a.position.y,a.position.z);model.group.rotation.y=a.job?a.yaw-Math.PI/2:-radians(model.actor.angle);
+      for(const [code,model] of models){const a=activeActors().get(code);model.group.position.set(a.position.x,a.position.y,a.position.z);model.group.rotation.y=model.actor.kind==='SH'?-radians(model.actor.angle):a.job?a.yaw-Math.PI/2:-radians(model.actor.angle);
         const displayed=model.label.userData.amr;displayed.state=actorStatus(a);displayed.equipmentStatus=mode==='routes'||a.enabled?displayed.state:(model.actor.status?.equipmentStatus||'미설정');displayed.currentSpeed=!simulation.paused&&a.job&&/이동|운반|복귀|주행/.test(a.status)?a.speed:0;displayed.transportHistory=a.transportHistory||[];
         model.label.setOperationStatus?.(displayed.equipmentStatus);
         const button=shell.zoneButtons.querySelector('[data-warehouse-object-code="'+code+'"] .warehouse-3d-object-status');if(button){button.textContent=displayed.equipmentStatus;button.style.setProperty('--warehouse-equipment-status-color',model.label.userData.equipmentStatusColor);}
@@ -477,7 +514,7 @@
         if(visual.userData.operationOpacity!==appearance.opacity){visual.traverse(part=>{if(part.material){part.material.transparent=appearance.opacity<1;part.material.opacity=appearance.opacity;part.material.depthWrite=appearance.opacity===1;part.material.needsUpdate=true;}});visual.userData.operationOpacity=appearance.opacity;}
         if(a){const model=models.get(a.code);visual.position.copy(model.loadAnchor?model.loadAnchor.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(a.position.x,a.position.y+model.actor.height+.01,a.position.z));}
         else{const p=job.cargo.position;visual.position.set(p.x,p.y,p.z);}
-        visual.rotation.y=stored?job.slot.group.rotation.y:a?a.yaw-Math.PI/2:0;
+        visual.rotation.y=stored?job.slot.group.rotation.y:a?a.kind==='shuttle'?-radians(models.get(a.code).actor.angle):a.yaw-Math.PI/2:0;
       }
       if(settled||timestamp-lastUi>80){refresh();lastUi=timestamp;}return true;
     },dispose(){detachSession();root.removeFromParent();resources.forEach(r=>r.dispose());cargoModels.forEach(m=>m.removeFromParent());routeCargoModels.forEach(m=>m.removeFromParent());}};

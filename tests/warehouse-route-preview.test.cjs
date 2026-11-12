@@ -6,6 +6,15 @@ const before=JSON.stringify({plan,actors}),sim=window.WmsWarehouseRoutePreview.c
 for(let i=0;i<400;i++){sim.tick(.1);const p=sim.actors.get('A1').position;assert.ok((Math.abs(p.z)<1e-8&&p.x>=0&&p.x<=4)||(Math.abs(p.x-2)<1e-8&&p.z>=0&&p.z<=2));branch||=p.z>1.5;left||=p.x<.1;right||=p.x>3.9;const s=sim.actors.get('S1').position;assert.equal(s.z,5);assert.ok(s.x>=0&&s.x<=3);}
 assert.ok(branch&&left&&right,'all connected branches repeat');assert.match(sim.actors.get('A2').status,/폭/);assert.match(sim.actors.get('A3').status,/미지정/);assert.equal(JSON.stringify({plan,actors}),before);assert.equal(sim.actors.get('A1').speed,1);
 assert.equal(sim.actors.get('S1').speed,1.3,'Only the shuttle moves 30% faster in route preview.');
+const cornerPreview=window.WmsWarehouseRoutePreview.create({objects:[{id:'GR-CORNER',kind:'GR',width:1,
+ points:[{x:0,y:0},{x:3,y:0},{x:3,y:3}]}]},
+ [{id:'SH-CORNER',code:'SH-CORNER',kind:'SH',x:0,y:0,w:.5,h:.5,angle:30,routeId:'GR-CORNER'}],0);
+const cornerShuttle=cornerPreview.actors.get('SH-CORNER'),initialYaw=cornerShuttle.yaw;
+let travelledX=false,travelledZ=false;
+for(let index=0;index<80;index++){cornerPreview.tick(.1);
+ travelledX||=cornerShuttle.position.x>1;travelledZ||=cornerShuttle.position.z>1;
+ assert.equal(cornerShuttle.yaw,initialYaw,'4-way shuttle never rotates at a corner or endpoint.');}
+assert.ok(travelledX&&travelledZ,'4-way shuttle still traverses both directions of the corner.');
 const stationPlan={objects:[1,2,3].flatMap(index=>{
  const y=index*5-.5;
  return [{id:`S0${index}`,kind:'S',x:13.5,y:y-.5,w:1,h:1,angle:0},

@@ -5,7 +5,7 @@
   const routes=new Map(),states=new Map();let elapsed=0;
   for(const actor of actors){
    const path=plan.objects.find(o=>o.id===actor.routeId&&o.kind===(actor.kind==='SH'?'GR':'T'));
-   const state={code:actor.code,drawingId:actor.id,position:{x:actor.x+actor.w/2,y:floorY,z:actor.y+actor.h/2},yaw:-actor.angle*Math.PI/180,status:'이동 경로 미지정',speed:(actor.master?.configuredSpeed>0?actor.master.configuredSpeed:1)*(actor.kind==='SH'?shuttleSpeedFactor:1),job:null};
+   const state={code:actor.code,drawingId:actor.id,kind:actor.kind==='SH'?'shuttle':'amr',position:{x:actor.x+actor.w/2,y:floorY,z:actor.y+actor.h/2},yaw:-actor.angle*Math.PI/180,status:'이동 경로 미지정',speed:(actor.master?.configuredSpeed>0?actor.master.configuredSpeed:1)*(actor.kind==='SH'?shuttleSpeedFactor:1),job:null};
    states.set(actor.code,state);if(!path)continue;
    const key=path.id+':'+actor.kind+':'+actor.w+':'+actor.h;
    if(!routes.has(key))routes.set(key,actor.kind==='SH'
@@ -27,7 +27,7 @@
       const key=choices[0];state.visits.set(edgeKey(key),(state.visits.get(edgeKey(key))||0)+1);state.target=state.graph.nodesByKey.get(key);
      }
      const dx=state.target.x/1000-state.position.x,dz=state.target.y/1000-state.position.z,distance=Math.hypot(dx,dz);
-     if(distance>1e-9){state.yaw=Math.atan2(dx,dz);state.moving=true;const move=Math.min(distance,remaining);state.position.x+=dx/distance*move;state.position.z+=dz/distance*move;remaining-=move;}
+     if(distance>1e-9){if(state.kind!=='shuttle')state.yaw=Math.atan2(dx,dz);state.moving=true;const move=Math.min(distance,remaining);state.position.x+=dx/distance*move;state.position.z+=dz/distance*move;remaining-=move;}
      if(distance<=remaining+1e-9||Math.hypot(state.target.x/1000-state.position.x,state.target.y/1000-state.position.z)<1e-8){state.node=state.target;state.target=null;}else break;
     }
    }

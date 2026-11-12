@@ -70,6 +70,18 @@
     });
     const omitted=originalInventory.length-data.inventory.length;
     if(omitted)warnings.push('현재 도면에 연결되지 않은 재고 '+omitted+'건은 표시하지 않습니다. 원본 기준정보는 보존됩니다.');
+    // Leave roughly half of the originally occupied cells open on every rack level for this 3D run.
+    // The reference book is never changed; small single-stock fixtures remain intact.
+    const stockByLevel=new Map();
+    for(const stock of data.inventory){const key=stock.rackCode+'|'+stock.level;
+      if(!stockByLevel.has(key))stockByLevel.set(key,[]);stockByLevel.get(key).push(stock);}
+    const keep=new Set();
+    const stockRank=code=>{let hash=2166136261;for(const char of code){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}return hash>>>0;};
+    for(const group of stockByLevel.values()){
+      group.sort((a,b)=>stockRank(a.locationCode)-stockRank(b.locationCode)||a.locationCode.localeCompare(b.locationCode));
+      group.slice(0,Math.ceil(group.length/2)).forEach(stock=>keep.add(stock.locationCode));
+    }
+    data.inventory=data.inventory.filter(stock=>keep.has(stock.locationCode));
     let equipment=[],statuses=[];
     try{equipment=api.parseEquipmentMaster(local.sheetCsv(book,'설비 마스터','A1:F1000'));}catch(e){warnings.push(e.message);}
     try{statuses=api.parseEquipmentStatus(local.sheetCsv(book,'설비 상태 정보','A2:O1000'));}catch(e){warnings.push(e.message);}

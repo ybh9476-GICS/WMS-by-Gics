@@ -201,12 +201,28 @@
             if (!waiter) {
                 waiter = { keys: new Set(step.acquire || []), order: this.reservationSequence++ };
                 this.reservationWaiters.set(job.id, waiter);
-            }
+            } else waiter.keys = new Set(step.acquire || []);
             if ([...this.reservationWaiters.values()].some(other => other.order < waiter.order
                 && [...other.keys].some(key => waiter.keys.has(key)))) return false;
             if (!this.reserve(job, step.acquire)) return false;
             this.reservationWaiters.delete(job.id);
             return true;
+        }
+        shuttlePathBlocker(actor, path) {
+            if (actor?.kind !== 'shuttle' || !path?.length) return null;
+            const clearance = other => (actor.radius + other.radius) * 0.9;
+            return [...this.actors.values()].find(other => other !== actor && other.kind === 'shuttle'
+                && path.some((end, index) => {
+                    const start = path[Math.max(0, index - 1)];
+                    const dx = end.x - start.x, dz = end.z - start.z;
+                    const lengthSquared = dx * dx + dz * dz;
+                    const along = lengthSquared ? Math.max(0, Math.min(1,
+                        ((other.position.x - start.x) * dx + (other.position.z - start.z) * dz) / lengthSquared)) : 0;
+                    const y = start.y + (end.y - start.y) * along;
+                    return Math.abs(other.position.y - y) < 0.4
+                        && Math.hypot(other.position.x - start.x - dx * along,
+                            other.position.z - start.z - dz * along) < clearance(other);
+                })) || null;
         }
         tick(dt) {
             if (this.paused || !Number.isFinite(dt) || !(dt > 0)) return;
@@ -221,9 +237,18 @@
             for (const job of this.jobs) {
                 if (job.done) continue;
                 if (!job.steps) {
+                    if (this.elapsed < (job.nextPrepareAt || 0)) continue;
                     const plan = this.prepare(job, this);
-                    if (!plan || plan.error) { job.status = plan?.error || '설비·목적지 대기'; continue; }
-                    if (!this.reserve(job, plan.reservations)) { job.status = '목적지 대기'; continue; }
+                    if (!plan || plan.error) {
+                        job.status = plan?.error || '설비·목적지 대기';
+                        job.nextPrepareAt = this.elapsed + 1;
+                        continue;
+                    }
+                    if (!this.reserve(job, plan.reservations)) {
+                        job.status = '목적지 대기'; job.nextPrepareAt = this.elapsed + 0.25;
+                        continue;
+                    }
+                    delete job.nextPrepareAt;
                     job.steps = plan.steps; job.reservations = plan.reservations;
                     job.cargo = { ...plan.cargo, id: job.id, position: point(plan.cargo.position) };
                     job.transportRecords = new Map();
@@ -282,6 +307,28 @@
                         job.status = '컨베이어 반대 방향 대기'; continue;
                     }
                     if (actor && actor.job && actor.job !== job.id) { job.status = '설비 대기'; continue; }
+                    if (step.resolvePath && actor) {
+                        const current = point(actor.position);
+                        if (!step.resolvedFrom || distance(step.resolvedFrom, current) > 0.0001) {
+                            const path = step.resolvePath(current);
+                            if (!path?.length) {
+                                job.status = actor.kind === 'shuttle' ? '셔틀 현재 위치 연결 확인' : 'AMR 현재 위치 연결 확인';
+                                continue;
+                            }
+                            step.path = path;
+                            if (step.resolveAcquire) step.acquire = step.resolveAcquire(path);
+                            step.resolvedFrom = current;
+                        }
+                    }
+                    if (step.yieldOnBlocked && actor) {
+                        const blocker = this.shuttlePathBlocker(actor, step.path);
+                        if (blocker && this.jobs.some(other => other !== job && !other.done
+                            && other.steps?.[other.stage]?.actor === blocker.code)) {
+                            this.reservationWaiters.delete(job.id);
+                            job.status = '안전 거리 대기'; actor.status = '대기';
+                            continue;
+                        }
+                    }
                     if (!this.reserveStep(job, step)) {
                         job.status = step.acquire?.some(key => key.startsWith('station:')) ? '스테이션 인계 대기'
                             : step.acquire?.some(key => key.startsWith('buffer:')) ? '버퍼 인계 대기'
@@ -292,15 +339,6 @@
                     }
                     if (step.conveyor && step.startOwner && !this.moveConveyor(job, step, job.cargo.position)) {
                         this.release(job, step.acquire); continue;
-                    }
-                    if (step.resolvePath && actor) {
-                        const path = step.resolvePath(point(actor.position));
-                        if (!path?.length) {
-                            this.release(job, step.acquire);
-                            job.status = 'AMR 현재 위치 연결 확인';
-                            continue;
-                        }
-                        step.path = path;
                     }
                     if (actor) { actor.job = job.id; actor.status = step.label; }
                     step.started = true; job.elapsed = 0; step.index = 0;
@@ -337,9 +375,17 @@
                         z: moving.position.z + (goal.z - moving.position.z) * amount / gap
                     };
                     if (step.conveyor && !this.moveConveyor(job, step, proposed)) continue;
-                    if (actor && [...this.actors.values()].some(other => other !== actor && other.kind === actor.kind
+                    const blocker = actor && [...this.actors.values()].find(other => other !== actor && other.kind === actor.kind
                         && Math.abs(other.position.y - proposed.y) < 0.4
-                        && Math.hypot(other.position.x - proposed.x, other.position.z - proposed.z) < (actor.radius + other.radius) * 0.9)) {
+                        && Math.hypot(other.position.x - proposed.x, other.position.z - proposed.z) < (actor.radius + other.radius) * 0.9);
+                    if (blocker) {
+                        if (step.yieldOnBlocked && actor.kind === 'shuttle' && this.jobs.some(other => other !== job && !other.done
+                            && other.steps?.[other.stage]?.actor === blocker.code
+                            && other.steps[other.stage].acquire?.some(key => this.locks.get(key) === job.id))) {
+                            this.release(job, step.acquire);
+                            this.reservationWaiters.delete(job.id);
+                            step.started = false; step.index = 0; actor.job = null;
+                        }
                         job.status = '안전 거리 대기'; actor.status = '대기';
                         if (record && !record.unloadedAt) record.status = job.status;
                         continue;

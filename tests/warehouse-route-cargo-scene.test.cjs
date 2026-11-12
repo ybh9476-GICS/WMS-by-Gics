@@ -204,7 +204,7 @@ const cycleScene=new THREE.Group(),cycleViewport=new Element();cycleViewport.clo
 const cycleMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:cycleData,scene:cycleScene,
  shell:{viewport:cycleViewport,zoneButtons:new Element()},rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:cycleSlots}]});
 session.play();let replenished=false,truckBatch=false,maxOnBelt=0,maxBuffer=0,firstTruckAt=null,secondTruckAt=null;
-for(let time=0;time<=300000;time+=100){cycleMount.update(time);
+for(let time=0;time<=420000;time+=100){cycleMount.update(time);
  const jobs=JSON.parse(cycleViewport.dataset.operationJobs);
  const queues=JSON.parse(cycleViewport.dataset.operationDockQueues);
  maxOnBelt=Math.max(maxOnBelt,jobs.filter(job=>job.cargoOwner==='conveyor').length);
@@ -222,7 +222,9 @@ for(let time=0;time<=300000;time+=100){cycleMount.update(time);
  if(replenished&&firstTruckAt!==null&&secondTruckAt!==null&&queues.D01>=4&&queues.D02>=4)break;
 }
 assert.ok(replenished,'D01 and D02 receive simulation-only replenishment after their stacks fall.');
-assert.ok(firstTruckAt!==null&&secondTruckAt>firstTruckAt,'D03 loads multiple four-box batches and keeps cycling.');
+assert.ok(firstTruckAt!==null&&secondTruckAt>firstTruckAt,
+ `D03 loads multiple four-box batches and keeps cycling: ${JSON.stringify({firstTruckAt,secondTruckAt,
+  outbound:JSON.parse(cycleViewport.dataset.operationJobs).filter(job=>job.direction==='출고').map(job=>[job.id,job.status,job.stage])})}`);
 assert.equal(session.snapshot().status,'running','Work-order simulation stays running after initial jobs finish.');
 assert.ok(maxOnBelt<=5,'No more than five cartons occupy the conveyor at once.');
 assert.ok(maxBuffer>=2,'The conveyor refills a buffer while an AMR handles another pallet.');
@@ -261,4 +263,31 @@ for(let time=1100;time<=180000&&!dynamicPicked;time+=100)heldMount.update(time);
 assert.ok(dynamicPicked&&dynamicFreed,'A generated outbound trip frees its entire source cell for the next inbound load.');
 heldMount.dispose();
 Ops.Simulation=OriginalSimulation;
+const inaccessibleSlots=Array.from({length:5},(_,index)=>({...cycleSlots[0],
+ locationCode:`GAP-${index}`,position:index?[20,0,index]:[0,0,0],occupied:true,
+ stock:{itemCode:'ITEM1',quantity:1,status:index?'hold':'normal'}}));
+const gapData={...cycleData,workOrders:[
+ {...cycleOrders[0],code:'OUT-GAP'},
+ {...cycleOrders[6],code:'IN-GAP1'},
+ {...cycleOrders[14],code:'IN-GAP2'}]};
+const gapViewport=new Element();gapViewport.closest=()=>shellRoot;
+const gapMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:gapData,
+ scene:new THREE.Group(),shell:{viewport:gapViewport,zoneButtons:new Element()},
+ rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:inaccessibleSlots}]});
+assert.equal(JSON.parse(gapViewport.dataset.operationJobs).find(job=>job.id==='OUT-GAP').total,19,
+ 'The initial outbound job can reach the only usable rack cell.');
+for(const slot of inaccessibleSlots.slice(1))slot.stock.status='normal';
+session.play();
+let partialLoaded=false;
+for(let time=0;time<=120000;time+=100){gapMount.update(time);
+ const state=JSON.parse(gapViewport.dataset.operationJobs);
+ assert.equal(state.filter(job=>job.id.startsWith('SIM-D03-')&&job.status.includes('랙 접근 연결 확인')).length,0,
+  'Unreachable generated pickups must not occupy the outbound queue.');
+ partialLoaded=state.find(job=>job.id==='OUT-GAP')?.done;
+ if(partialLoaded)break;
+}
+assert.ok(partialLoaded,'D03 releases a partial truck load when no more reachable pickups can arrive.');
+assert.equal(JSON.parse(gapViewport.dataset.operationJobs).filter(job=>job.id.startsWith('SIM-D03-')).length,0,
+ 'Unreachable rack stock cannot block new outbound dispatches.');
+gapMount.dispose();
 console.log('PASS cargo scenes: real work-order dock stack, conveyor-to-rack and rack-to-truck, preview, pause and stop');

@@ -157,6 +157,8 @@
     const continuous=!!cycleOutbound&&[...cycleInbound.values()].every(Boolean);
     const cycleCompleted={입고:0,출고:0};
     let cycleSerial=0;
+    const unreachableOutboundSlots=new Set();
+    const rackAccessError=reason=>typeof reason==='string'&&reason.includes('랙 접근 연결 확인');
     const dockPosition=place=>({x:place.x/1000,y:floorY+.06+place.layer*(sampleSize[1]+.08),z:place.y/1000});
     const placeKey=place=>`${place.x}:${place.y}:${place.layer}`;
     function freeDockPlaces(code,count){
@@ -204,15 +206,25 @@
         // A station meets the edge of the guide rail, not necessarily its centerline.
         const stationGap=.15+byId(candidate.routeId).width/2;
         const sg=graph([candidate.routeId],Math.max(candidate.w,candidate.h)*1000),sn=access(sg,station,stationGap);
-        const state=sim.actors.get(candidate.code),current={x:state.position.x,y:state.position.z};
-        const atStation=plan.objects.find(o=>o.kind==='S'&&access({nodes:[{x:current.x*1000,y:current.y*1000}]},o,0));
-        const home=(atStation&&access(sg,atStation,stationGap))||nearest(sg,current);
+        const state=sim.actors.get(candidate.code);
+        const arrivalFrom=position=>{
+          const current={x:position.x,y:position.z};
+          const atStation=plan.objects.find(o=>o.kind==='S'&&access({nodes:[{x:current.x*1000,y:current.y*1000}]},o,0));
+          const home=(atStation&&access(sg,atStation,stationGap))||nearest(sg,current);
+          if(!home||!sn)return [];
+          const arrival=routePoints(sg,home,sn);
+          if(!arrival.length)return [];
+          const stationCenter=center(station);
+          arrival.push({x:stationCenter.x,y:floorY,z:stationCenter.y});
+          if(atStation?.id===station.id)return [{...position}];
+          arrival.unshift({...position});
+          return arrival;
+        };
+        const home=nearest(sg,{x:state.position.x,y:state.position.z});
         if(!sn||!home){fail(1,`${candidate.id}: ${candidate.routeId}와 ${station.id} 연결·장비 폭 확인`);continue;}
-        const arrive=routePoints(sg,home,sn);
+        const arrive=arrivalFrom(state.position);
         if(!arrive.length){fail(1,`${candidate.id}: 현재 위치에서 ${station.id}까지 GR 연결 확인`);continue;}
-        const stationCenter=center(station);arrive.push({x:stationCenter.x,y:floorY,z:stationCenter.y});
-        if(atStation?.id===station.id)arrive.splice(0,arrive.length,{x:current.x,y:floorY,z:current.y});
-        else arrive.unshift({x:current.x,y:floorY,z:current.y});
+        const stationCenter=center(station);
         for(const slot of slots){
           if(job.sourceLocationCode&&slot.locationCode!==job.sourceLocationCode)continue;
           if(sim.locks.has('slot:'+slot.locationCode))continue;
@@ -230,11 +242,11 @@
           const from=access(loadGraph,inbound?dock:buffer),to=access(loadGraph,inbound?buffer:dock);
           const cvPath=routePoints(loadGraph,from,to,floorY+1);
           if(!cvPath.length){fail(5,`${inbound?dock.id:buffer.id} → ${inbound?buffer.id:dock.id}: 화물 폭 ${cargoWidth.toFixed(2)}m 이상인 CV 연결·진행 방향 확인`);continue;}
-          choices.push({slot,world,shuttle:candidate,arrive,path,h,cvPath});
+          choices.push({slot,world,shuttle:candidate,arrive,arrivalFrom,path,h,cvPath});
         }
       }
       if(!choices.length)return {error:[...failures].join(' / ')||`${station.id}: 셔틀 설비의 사용·통신·속도·GR 지정 및 랙 로케이션 배치 확인`};
-      const chosen=balancedChoice(choices,r.direction),{slot,world,shuttle,arrive,path,h,cvPath}=chosen;
+      const chosen=balancedChoice(choices,r.direction),{slot,world,shuttle,arrive,arrivalFrom,path,h,cvPath}=chosen;
       job.slot=slot;job.shuttle=shuttle.code;job.order.finalLocationCode=slot.locationCode;
       const stationBase=path[0],stationLow={...stationBase,y:floorY},rackNode=path[path.length-1],rackPosition={x:world.x,y:world.y,z:world.z};
       const returnPath=path.slice().reverse(),amrStart=amrPath[0],amrEnd=amrPath[amrPath.length-1];
@@ -259,12 +271,14 @@
       const truckPos=truckBounds?{x:(truckBounds.minX+truckBounds.maxX)/2000,y:floorY+1.2,z:(truckBounds.minZ+truckBounds.maxZ)/2000}
         :{x:dockCenter.x,y:floorY+1.2,z:dockCenter.y+dock.h/2+1.5};
       const liftUp=move(shuttle.code,[stationLow,stationBase],'리프트 상승'),liftDown=move(shuttle.code,[stationBase,stationLow],'리프트 하강');
-      const shuttleLocks=['lift:'+station.id,...Ops.shuttleRouteResources([arrive,path,returnPath,
+      const shuttleRouteLocks=arrival=>['lift:'+station.id,...Ops.shuttleRouteResources([arrival,path,returnPath,
         [stationLow,stationBase]],{radius:Math.max(shuttle.w,shuttle.h)/2+.1})];
+      const shuttleLocks=shuttleRouteLocks(arrive);
       // An outbound trip must claim its destination station with the rail, so it cannot
       // wait for a station held by an inbound trip while blocking that trip's rail.
       const shuttleApproach={...move(shuttle.code,arrive,'셔틀 접근'),
-        acquire:inbound?shuttleLocks:[...shuttleLocks,stationLock],fairAcquire:inbound};
+        acquire:inbound?shuttleLocks:[...shuttleLocks,stationLock],fairAcquire:inbound,
+        resolvePath:arrivalFrom,yieldOnBlocked:true};
       const cvMove={path:inbound?[dockPos,...cvPath]:[bufferPos,...cvPath,dockPos],speed:1.5,label:'컨베이어 운반',
         startOwner:'conveyor',conveyor:true,lanePath:cvPath,clearance:Math.max(slot.boxSize[0],slot.boxSize[2])+.3,conveyorCapacity:5};
       if(inbound){cvMove.entryQueue='CV:'+dock.id;cvMove.entryOrder=job.dockEntryOrder;cvMove.entryInterval=['D01','D02'].includes(dock.id)?5:0;
@@ -297,6 +311,11 @@
         ...(continuous&&dock.id==='D03'?[truckWait,{path:[dockPos,truckPos],speed:2,label:'차량 상차 이동'},transfer('truck:'+dock.id,truckPos,'차량 상차','truck-load')]
           :[transfer('truck:'+dock.id,dockPos,'차량 상차','truck-load')])
       ];
+      shuttleApproach.resolveAcquire=arrival=>{
+        const locks=shuttleRouteLocks(arrival);
+        steps[inbound?18:6].release=locks;
+        return inbound?locks:[...locks,stationLock];
+      };
       // Each job owns its rack cell; shared handoff areas are reserved only while cargo occupies them.
       return {reservations:['slot:'+slot.locationCode],
         transports:[{actor:amr.code,from:inbound?buffer.id:station.id,to:inbound?station.id:buffer.id},{actor:shuttle.code,from:inbound?station.id:slot.locationCode,to:inbound?slot.locationCode:station.id}].map(t=>({...t,itemInfo:job.itemCode+' · '+job.quantity+'개',barcode:job.order.barcode||'HU-'+job.id})),
@@ -352,8 +371,12 @@
     function cycleDockCount(code){return simulation.jobs.filter(job=>job.order.direction==='입고'&&job.route?.dock===code
       &&job.cargo?.owner==='dock:'+code).length;}
     function addInbound(code){
-      const template=cycleInbound.get(code),places=freeDockPlaces(code,4);
+      const template=cycleInbound.get(code);
       if(!template)return;
+      const active=simulation.jobs.filter(job=>job.order.direction==='입고'&&job.route?.dock===code&&!job.done).length;
+      const capacity=Math.max(0,12-active);
+      if(!capacity)return;
+      const places=freeDockPlaces(code,Math.min(4,capacity));
       for(const place of places){
         const id=`SIM-${code}-${++cycleSerial}`,position=dockPosition(place);
         const order={...template.order,code:id,status:'대기',finalLocationCode:''};
@@ -366,38 +389,52 @@
       }
     }
     function addOutbound(){
-      if(!cycleOutbound)return;
+      if(!cycleOutbound)return 0;
       const active=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'&&!job.done).length;
-      if(active>=8)return;
+      if(active>=8)return 0;
       const pending=new Set(simulation.jobs.filter(job=>!job.steps&&job.sourceLocationCode).map(job=>job.sourceLocationCode));
       const available=slots.filter(slot=>slot.occupied&&slot.stock?.quantity>0
         &&!['hold','defect'].includes(slot.stock.status)&&!simulation.locks.has('slot:'+slot.locationCode)
-        &&!pending.has(slot.locationCode)).map(slot=>({slot}));
-      for(let index=0;index<Math.min(2,8-active)&&available.length;index++){
+        &&!pending.has(slot.locationCode)&&!unreachableOutboundSlots.has(slot.locationCode)).map(slot=>({slot}));
+      let dispatched=0,attempts=0;
+      while(dispatched<Math.min(2,8-active)&&available.length&&attempts++<6){
         const chosen=balancedChoice(available,'출고'),slot=chosen.slot;
         available.splice(available.indexOf(chosen),1);
         const id=`SIM-D03-${++cycleSerial}`,order={...cycleOutbound.order,code:id,status:'대기',
           direction:'출고',routeCode:cycleOutbound.route.code,equipmentCode:cycleOutbound.route.amr,
           itemCode:slot.stock.itemCode,quantity:slot.stock.quantity,finalLocationCode:''};
-        simulation.jobs.push({id,order,route:cycleOutbound.route,itemCode:order.itemCode,quantity:order.quantity,
+        const candidate={id,order,route:cycleOutbound.route,itemCode:order.itemCode,quantity:order.quantity,
           cycle:true,sourceLocationCode:slot.locationCode,stage:0,steps:null,status:'대기',elapsed:0,done:false,cargo:null,
-          dockPlace:freeDockPlaces('D03',1)[0]});
+          dockPlace:freeDockPlaces('D03',1)[0]};
+        const planned=prepare(candidate,simulation);
+        if(planned.error){
+          if(rackAccessError(planned.error)){unreachableOutboundSlots.add(slot.locationCode);continue;}
+          break;
+        }
+        simulation.jobs.push(candidate);dispatched++;
       }
+      return dispatched;
     }
     function cycleTick(){
       if(!continuous||mode!=='orders'||status!=='running')return;
-      const staged=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'
-        &&job.cargo?.owner==='dock:D03'&&job.truckWaitStep&&!job.truckBatchReleased)
-        .sort((a,b)=>(a.dockArrivedAt??Infinity)-(b.dockArrivedAt??Infinity));
-      if(staged.length>=6)for(const job of staged.slice(0,4)){job.truckBatchReleased=true;job.truckWaitStep.duration=0;}
       for(let index=simulation.jobs.length-1;index>=0;index--){
         const job=simulation.jobs[index];if(!job.cycle||job.order.direction!=='출고'||job.steps||!job.sourceLocationCode)continue;
         const slot=slots.find(value=>value.locationCode===job.sourceLocationCode);
+        if(rackAccessError(job.status))unreachableOutboundSlots.add(job.sourceLocationCode);
         if(!slot?.occupied||slot.stock?.itemCode!==job.itemCode||slot.stock.quantity<job.quantity
-          ||['hold','defect'].includes(slot.stock.status)||simulation.locks.has('slot:'+slot.locationCode))simulation.jobs.splice(index,1);
+          ||['hold','defect'].includes(slot.stock.status)||simulation.locks.has('slot:'+slot.locationCode)
+          ||!['대기','목적지 대기'].includes(job.status))simulation.jobs.splice(index,1);
       }
       for(const code of cycleInbound.keys())if(cycleDockCount(code)<=4)addInbound(code);
-      addOutbound();
+      const dispatched=addOutbound();
+      const staged=simulation.jobs.filter(job=>job.order.direction==='출고'&&job.route?.dock==='D03'
+        &&job.cargo?.owner==='dock:D03'&&job.truckWaitStep&&!job.truckBatchReleased)
+        .sort((a,b)=>(a.dockArrivedAt??Infinity)-(b.dockArrivedAt??Infinity));
+      const upstream=simulation.jobs.some(job=>job.order.direction==='출고'&&job.route?.dock==='D03'&&!job.done
+        &&(job.steps?job.stage<16:['대기','목적지 대기'].includes(job.status)));
+      if(staged.length>=6||(staged.length&&!upstream&&!dispatched
+          &&simulation.elapsed-(staged[0].dockArrivedAt??Infinity)>=20))
+        for(const job of staged.slice(0,4)){job.truckBatchReleased=true;job.truckWaitStep.duration=0;}
       for(let index=simulation.jobs.length-1;index>=0;index--){
         const job=simulation.jobs[index];
         if(!job.done||!(job.cargo?.owner==='consumed'||job.order.direction==='출고'&&simulation.elapsed-(job.completedAt??Infinity)>2))continue;
@@ -430,7 +467,7 @@
       routeCargoPreview.reset();
       levelUseCounts.clear();
       simulation=new Ops.Simulation({actors:initialActors(),jobs,prepare,onEvent});simulation.advance(0);simulation.paused=true;
-      cycleSerial=0;cycleCompleted.입고=0;cycleCompleted.출고=0;
+      cycleSerial=0;cycleCompleted.입고=0;cycleCompleted.출고=0;unreachableOutboundSlots.clear();
       mode=nextMode;pendingMode=null;status='ready';previous=null;
     }
     function start(){

@@ -272,6 +272,40 @@ for (let i = 0; i < 500; i++) {
 assert.ok(tripSim.jobs.every(job => job.done), 'Crossing shuttle trips must finish without deadlock.');
 assert.equal(tripSim.locks.size, 0);
 assert.equal(tripSim.reservationWaiters.size, 0);
+const crossingSim = new Ops.Simulation({
+    actors: [
+        { code: 'OUT', kind: 'shuttle', enabled: true, online: true, speed: 1, radius: 0.5, position: { x: 0, y: 0, z: 0 } },
+        { code: 'IN', kind: 'shuttle', enabled: true, online: true, speed: 1, radius: 0.5, position: { x: 1, y: 0, z: 0 } }
+    ],
+    jobs: [{ id: 'OUT' }, { id: 'IN' }],
+    prepare: job => ({ cargo: { position: { x: 0, y: 0, z: 0 } }, steps: [
+        ...(job.id === 'IN' ? [{ duration: 0.2, label: '인계 대기' }] : []),
+        { actor: job.id, path: job.id === 'OUT' ? [{ x: 0, y: 0, z: 0 }, { x: 2, y: 0, z: 0 }]
+            : [{ x: 1, y: 0, z: 0 }, { x: 1, y: 0, z: 2 }],
+        acquire: ['crossing'], release: ['crossing'], releaseActor: true,
+        fairAcquire: true, yieldOnBlocked: true, label: '셔틀 접근' }
+    ] })
+});
+let crossingYielded = false;
+for (let i = 0; i < 240; i++) {
+    crossingSim.tick(0.05);
+    crossingYielded ||= crossingSim.jobs[0].status === '안전 거리 대기'
+        && crossingSim.actors.get('OUT').job === null;
+}
+assert.ok(crossingYielded, 'The leading shuttle must relinquish a held route when a waiting shuttle blocks it.');
+assert.ok(crossingSim.jobs.every(job => job.done),
+    'A shuttle blocked by another shuttle waiting for its route must yield the reservation and both trips must finish.');
+assert.equal(crossingSim.locks.size, 0);
+let planningAttempts = 0;
+const retrySim = new Ops.Simulation({ actors: [], jobs: [{ id: 'WAIT-STOCK' }],
+    prepare: (job, simulation) => {
+        planningAttempts++;
+        return simulation.elapsed < 0.9 ? { error: '빈 로케이션 대기' }
+            : { cargo: { position: { x: 0, y: 0, z: 0 } }, steps: [{ duration: 0.05, label: '적치' }] };
+    } });
+for (let i = 0; i < 30; i++) retrySim.tick(0.05);
+assert.equal(planningAttempts, 2, 'Unavailable rack stock must not trigger route planning on every simulation frame.');
+assert.ok(retrySim.jobs[0].done, 'Deferred planning must resume promptly after a rack location becomes available.');
 assert.ok(!operationScene.includes("'ST:transport'"), 'The scene must not reserve the whole shuttle network.');
 assert.match(operationScene, /fairAcquire: true/);
 const originals = [{ code: 'W1', status: '대기', barcode: 'HU-1', quantity: 3 }, { code: 'DONE', status: '완료' }];

@@ -89,10 +89,14 @@ const mount = window.WmsWarehouseDrawingScene.mount(env);
 session.play();
 const totals = [];
 let longestSafetyWait = 0, safetySince = new Map(), maxActiveInbound = 0;
+const bufferArrivals = { B02: new Set(), B03: new Set() };
 for (let time = 0; time <= 720000; time += 100) {
     mount.update(time);
     if (time % 1000) continue;
     const jobs = JSON.parse(viewport.dataset.operationJobs);
+    for (const job of jobs) {
+        for (const code of ['B02', 'B03']) if (job.cargoOwner === `buffer:${code}`) bufferArrivals[code].add(job.id);
+    }
     for (const job of jobs) {
         if (job.status === '안전 거리 대기') {
             if (!safetySince.has(job.id)) safetySince.set(job.id, time);
@@ -103,7 +107,10 @@ for (let time = 0; time <= 720000; time += 100) {
         ...['D01', 'D02'].map(code => jobs.filter(job => job.direction === '입고'
             && job.route === (code === 'D01' ? 'IN01' : 'IN02') && !job.done).length));
     if ([300000, 600000, 720000].includes(time))
-        totals.push({ time, ...JSON.parse(viewport.dataset.operationCycleTotals) });
+        totals.push({ time, ...JSON.parse(viewport.dataset.operationCycleTotals),
+            B02: bufferArrivals.B02.size, B03: bufferArrivals.B03.size,
+            D01Entries: jobs.filter(job => job.route === 'IN01' && Number.isFinite(job.conveyorEnteredAt)).length,
+            D02Entries: jobs.filter(job => job.route === 'IN02' && Number.isFinite(job.conveyorEnteredAt)).length });
 }
 assert.equal(session.snapshot().status, 'running');
 assert.ok(totals[0].출고 >= 4, 'Outbound work must complete before five minutes.');
@@ -111,6 +118,11 @@ assert.ok(totals[1].출고 > totals[0].출고 && totals[2].출고 > totals[1].�
     'Outbound work must keep progressing after five and ten minutes.');
 assert.ok(totals[1].입고 > totals[0].입고 && totals[2].입고 > totals[1].입고,
     'Inbound work must keep progressing after five and ten minutes.');
+assert.ok(totals.every(sample => Math.abs(sample.D01Entries - sample.D02Entries) <= 2
+    && Math.abs(sample.B02 - sample.B03) <= 3),
+    `The two inbound buffers must receive similar numbers of cartons throughout the run: ${JSON.stringify(totals)}`);
+assert.ok(totals[0].입고 >= 12 && totals[2].입고 >= 30,
+    'Balancing inbound buffers must preserve useful throughput.');
 assert.ok(longestSafetyWait < 60, 'No shuttle may remain in a safety-distance wait for a full minute.');
 assert.ok(maxActiveInbound <= 12, 'Each inbound lane must have bounded active work.');
 mount.dispose();

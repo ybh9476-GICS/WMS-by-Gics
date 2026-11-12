@@ -118,9 +118,10 @@ assert.ok(limited,'After five entries, the remaining cartons wait at the dock wi
 assert.equal(session.snapshot().jobs.filter(job=>job.done).length,5);
 assert.equal(session.snapshot().jobs.filter(job=>job.cargo?.owner==='dock:D01').length,2);
 const entries=JSON.parse(orderViewport.dataset.operationJobs).map(job=>job.conveyorEnteredAt).sort((a,b)=>a-b);
-assert.equal(entries.filter(Number.isFinite).length,5);
-entries.filter(Number.isFinite).slice(1).forEach((entry,index)=>assert.ok(entry-entries[index]>=4.999,
- 'D01 cartons enter the conveyor at least five seconds apart.'));
+const admittedEntries=entries.filter(Number.isFinite);
+assert.equal(admittedEntries.length,5);
+admittedEntries.slice(1).forEach((entry,index)=>assert.ok(entry-admittedEntries[index]>=3.499&&entry-admittedEntries[index]<=4.001,
+ 'D01 cartons enter the uncongested conveyor every 3 to 4 seconds.'));
 orderMount.dispose();
 const waitingSlots=slots.slice(0,2).map(slot=>({...slot,occupied:false,stock:null}));
 const waitingData={...orderData,meta:{...orderData.meta,actors:[{...actors[0],x:7},actors[1]]},
@@ -203,11 +204,12 @@ const cycleData={...orderData,meta:{...orderData.meta,plan:{objects:cycleObjects
 const cycleScene=new THREE.Group(),cycleViewport=new Element();cycleViewport.closest=()=>shellRoot;
 const cycleMount=window.WmsWarehouseDrawingScene.mount({...orderEnv,data:cycleData,scene:cycleScene,
  shell:{viewport:cycleViewport,zoneButtons:new Element()},rackEntries:[{rack:{code:'W01'},group:rackGroup,slots:cycleSlots}]});
-session.play();let replenished=false,truckBatch=false,maxOnBelt=0,maxBuffer=0,firstTruckAt=null,secondTruckAt=null;
+session.play();let replenished=false,truckBatch=false,maxOnBelt={입고:0,출고:0},maxBuffer=0,firstTruckAt=null,secondTruckAt=null;
 for(let time=0;time<=420000;time+=100){cycleMount.update(time);
  const jobs=JSON.parse(cycleViewport.dataset.operationJobs);
  const queues=JSON.parse(cycleViewport.dataset.operationDockQueues);
- maxOnBelt=Math.max(maxOnBelt,jobs.filter(job=>job.cargoOwner==='conveyor').length);
+ for(const direction of ['입고','출고'])maxOnBelt[direction]=Math.max(maxOnBelt[direction],
+  jobs.filter(job=>job.cargoOwner==='conveyor'&&job.direction===direction).length);
  for(const code of ['B01','B03']){
   const atBuffer=jobs.filter(job=>job.cargoOwner==='buffer:'+code);
   maxBuffer=Math.max(maxBuffer,atBuffer.length);
@@ -226,7 +228,7 @@ assert.ok(firstTruckAt!==null&&secondTruckAt>firstTruckAt,
  `D03 loads multiple four-box batches and keeps cycling: ${JSON.stringify({firstTruckAt,secondTruckAt,
   outbound:JSON.parse(cycleViewport.dataset.operationJobs).filter(job=>job.direction==='출고').map(job=>[job.id,job.status,job.stage])})}`);
 assert.equal(session.snapshot().status,'running','Work-order simulation stays running after initial jobs finish.');
-assert.ok(maxOnBelt<=5,'No more than five cartons occupy the conveyor at once.');
+assert.ok(maxOnBelt.입고<=5&&maxOnBelt.출고<=5,'Each conveyor line holds no more than five cartons.');
 assert.ok(maxBuffer>=2,'The conveyor refills a buffer while an AMR handles another pallet.');
 const beforePause=cycleViewport.dataset.operationElapsed,pausedQueues=cycleViewport.dataset.operationDockQueues;
 session.pause();cycleMount.update(900100);cycleMount.update(910000);

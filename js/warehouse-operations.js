@@ -290,6 +290,7 @@
                     }
                     if (step.entryQueue && this.jobs.some(other => other !== job && !other.done
                         && other.steps?.[other.stage]?.entryQueue === step.entryQueue
+                        && !other.steps[other.stage].started
                         && other.steps[other.stage].entryOrder < step.entryOrder)) {
                         job.status = '컨베이어 진입 순서 대기'; continue;
                     }
@@ -297,8 +298,20 @@
                         && this.elapsed - (this.conveyorEntryTimes.get(step.entryQueue) ?? -Infinity) < step.entryInterval - 1e-9) {
                         job.status = '컨베이어 투입 간격 대기'; continue;
                     }
+                    if (step.entryBalanceWith) {
+                        const own = this.conveyorEntryCounts.get(step.entryQueue) || 0;
+                        const peer = this.conveyorEntryCounts.get(step.entryBalanceWith) || 0;
+                        if (own > peer) {
+                            step.balanceWaitSince ??= this.elapsed;
+                            if (this.elapsed - step.balanceWaitSince < step.entryBalanceWait) {
+                                job.status = '입고 경로 균형 대기'; continue;
+                            }
+                        }
+                        step.balanceWaitSince = null;
+                    }
                     if (step.conveyor && step.conveyorCapacity > 0 && job.cargo.owner !== 'conveyor'
-                        && this.jobs.filter(other => other.cargo?.owner === 'conveyor').length >= step.conveyorCapacity) {
+                        && this.jobs.filter(other => other.cargo?.owner === 'conveyor'
+                            && (!step.conveyorLine || !other.conveyorLine || other.conveyorLine === step.conveyorLine)).length >= step.conveyorCapacity) {
                         job.status = '컨베이어 적재 한도 대기'; continue;
                     }
                     if (step.conveyor && job.cargo.owner !== 'conveyor' && this.jobs.some(other => other !== job
@@ -345,9 +358,12 @@
                     if (step.startOwner) job.cargo.owner = step.startOwner;
                     this.release(job, step.releaseOnStart);
                     if (step.entryQueue && step.entryInterval > 0) this.conveyorEntryTimes.set(step.entryQueue, this.elapsed);
-                    if (step.entryQueue && step.entryLimit > 0) this.conveyorEntryCounts.set(step.entryQueue,
+                    if (step.entryQueue) this.conveyorEntryCounts.set(step.entryQueue,
                         (this.conveyorEntryCounts.get(step.entryQueue) || 0) + 1);
-                    if (step.startOwner === 'conveyor') job.conveyorEnteredAt = this.elapsed;
+                    if (step.startOwner === 'conveyor') {
+                        job.conveyorEnteredAt = this.elapsed;
+                        job.conveyorLine = step.conveyorLine;
+                    }
                 }
                 job.status = step.label;
                 if (record && !record.unloadedAt) record.status = step.label;

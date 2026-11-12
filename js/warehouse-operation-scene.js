@@ -7,7 +7,7 @@
             shuttleBodyCenterY, shuttleFrameHeight, setForkHeight, setForkExtension, stackerDimensions, travelForkHeight, isLevelFocused, slotVisualState } = env;
         const Ops = window.WmsWarehouseOperations;
         const conveyorSpeed = 1.5; // m/s; AMR and shuttle speeds come from the equipment master.
-        const conveyorEntryInterval = 5; // Minimum seconds between successful admissions at each D/B entry.
+        const conveyorEntryInterval = 3.5; // Minimum seconds between successful admissions at each D/B entry.
         const size = data.meta?.floorPlanCellSize || 500;
         const routes = data.operationRoutes.filter(r => r.enabled).sort((a, b) => a.priority - b.priority);
         const buffers = Ops.regions(data.meta?.bufferCells || [], size);

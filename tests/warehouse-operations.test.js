@@ -98,6 +98,17 @@ const admitted = [...stackSim.jobs].sort((a, b) => a.conveyorEnteredAt - b.conve
 assert.deepEqual(admitted.map(job => job.index), departureOrder);
 admitted.slice(1).forEach((job, index) => assert.ok(job.conveyorEnteredAt - admitted[index].conveyorEnteredAt >= 5 - 1e-8));
 
+const movingEntry = new Ops.Simulation({ actors: [], jobs: [{ id: 'FIRST' }, { id: 'SECOND' }],
+    prepare: job => ({ cargo: { owner: 'dock', position: { x: 0, y: 0, z: 0 } }, steps: [
+        { label: '컨베이어 운반', startOwner: 'conveyor', entryQueue: 'D01',
+            entryOrder: job.id === 'FIRST' ? 0 : 1, entryInterval: 3.5, duration: 20 }
+    ] }) });
+movingEntry.tick(4);
+assert.ok(Number.isFinite(movingEntry.jobs[1].conveyorEnteredAt),
+    'The next carton enters while the previous carton is still travelling on the conveyor.');
+assert.ok(movingEntry.jobs[1].conveyorEnteredAt - movingEntry.jobs[0].conveyorEnteredAt >= 3.5 - 1e-8);
+assert.ok(movingEntry.jobs[1].conveyorEnteredAt - movingEntry.jobs[0].conveyorEnteredAt <= 3.55);
+
 const capacitySim = new Ops.Simulation({ actors: [], jobs: Array.from({ length: 6 }, (_, index) => ({ id: `BELT-${index}`, index })),
     prepare: job => ({ cargo: { owner: 'dock:D01', position: { x: job.index * 10, y: 1, z: 0 } },
         steps: [{ label: '컨베이어 운반', conveyor: true, conveyorCapacity: 5, startOwner: 'conveyor',
@@ -109,6 +120,18 @@ assert.equal(capacitySim.jobs.filter(job => job.cargo.owner === 'conveyor').leng
 assert.equal(capacitySim.jobs[5].status, '컨베이어 적재 한도 대기');
 for (let index = 0; index < 250; index++) capacitySim.tick(0.05);
 assert.ok(Number.isFinite(capacitySim.jobs[5].conveyorEnteredAt), 'Waiting carton resumes after a conveyor place opens.');
+const separateLines = new Ops.Simulation({ actors: [],
+    jobs: [...Array.from({ length: 6 }, (_, index) => ({ id: `IN-${index}`, direction: '입고', index })),
+        { id: 'OUT-0', direction: '출고', index: 0 }],
+    prepare: job => ({ cargo: { owner: 'dock', position: { x: job.index * 10, y: 1, z: job.direction === '입고' ? 0 : 30 } },
+        steps: [{ label: '컨베이어 운반', conveyor: true, conveyorCapacity: 5, conveyorLine: job.direction,
+            startOwner: 'conveyor', duration: 20 }] }) });
+separateLines.tick(0.05);
+assert.equal(separateLines.jobs.filter(job => job.cargo.owner === 'conveyor' && job.direction === '입고').length, 5,
+    'The inbound line retains its five-carton limit.');
+assert.equal(separateLines.jobs[5].status, '컨베이어 적재 한도 대기');
+assert.equal(separateLines.jobs[6].cargo.owner, 'conveyor',
+    'A full inbound line must not block B01 outbound cartons on the separate line.');
 const limitSim = new Ops.Simulation({ actors: [], jobs: Array.from({ length: 7 }, (_, index) => ({ id: `DOCK-${index}` })),
     prepare: () => ({ cargo: { owner: 'dock:D01', position: { x: 0, y: 1, z: 0 } },
         steps: [{ label: '컨베이어 투입', startOwner: 'conveyor', entryQueue: 'CV:D01', entryInterval: 5,
@@ -118,6 +141,28 @@ assert.equal(limitSim.conveyorEntryCounts.get('CV:D01'), 5);
 assert.equal(limitSim.jobs.filter(job => Number.isFinite(job.conveyorEnteredAt)).length, 5,
     'Only five cartons may enter from D01 over the whole simulation run.');
 assert.equal(limitSim.jobs.filter(job => job.status === '컨베이어 투입 상한 대기').length, 2);
+
+const balancedEntry = new Ops.Simulation({ actors: [], jobs: [{ id: 'A1' }, { id: 'B1' }, { id: 'A2' }],
+    prepare: job => ({ cargo: { owner: 'dock', position: { x: 0, y: 0, z: 0 } }, steps: [
+        ...(job.id === 'B1' ? [{ label: '도크 준비', duration: 1 }] : []),
+        { label: '컨베이어 투입', startOwner: 'conveyor', entryQueue: job.id[0],
+            entryBalanceWith: job.id[0] === 'A' ? 'B' : 'A', entryBalanceWait: 3, duration: 0.1 }
+    ] }) });
+balancedEntry.tick(0.05);
+assert.ok(Number.isFinite(balancedEntry.jobs[0].conveyorEnteredAt));
+assert.equal(balancedEntry.jobs[2].status, '입고 경로 균형 대기');
+balancedEntry.tick(2);
+assert.ok(Number.isFinite(balancedEntry.jobs[1].conveyorEnteredAt), 'The leading dock resumes after the other dock enters.');
+assert.ok(Number.isFinite(balancedEntry.jobs[2].conveyorEnteredAt));
+const blockedPeer = new Ops.Simulation({ actors: [], jobs: [{ id: 'A1' }, { id: 'B1' }, { id: 'A2' }],
+    prepare: job => ({ cargo: { owner: 'dock', position: { x: 0, y: 0, z: 0 } }, steps: [
+        ...(job.id === 'B1' ? [{ label: '도크 준비', duration: Infinity }] : []),
+        { label: '컨베이어 투입', startOwner: 'conveyor', entryQueue: job.id[0],
+            entryBalanceWith: job.id[0] === 'A' ? 'B' : 'A', entryBalanceWait: 3, duration: 0.1 }
+    ] }) });
+blockedPeer.tick(4);
+assert.ok(Number.isFinite(blockedPeer.jobs[2].conveyorEnteredAt),
+    'A blocked dock must not stop the other inbound dock indefinitely.');
 
 const events = [];
 const route = { code: 'IN01', direction: '입고', amr: 'AMR-002', buffer: 'B01', station: 'S02' };

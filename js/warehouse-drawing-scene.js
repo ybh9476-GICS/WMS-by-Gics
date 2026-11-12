@@ -280,9 +280,14 @@
         acquire:inbound?shuttleLocks:[...shuttleLocks,stationLock],fairAcquire:inbound,
         resolvePath:arrivalFrom,yieldOnBlocked:true};
       const cvMove={path:inbound?[dockPos,...cvPath]:[bufferPos,...cvPath,dockPos],speed:1.5,label:'컨베이어 운반',
-        startOwner:'conveyor',conveyor:true,lanePath:cvPath,clearance:Math.max(slot.boxSize[0],slot.boxSize[2])+.3,conveyorCapacity:5};
-      if(inbound){cvMove.entryQueue='CV:'+dock.id;cvMove.entryOrder=job.dockEntryOrder;cvMove.entryInterval=['D01','D02'].includes(dock.id)?5:0;
-        cvMove.entryLimit=!continuous&&['D01','D02'].includes(dock.id)?5:0;cvMove.waitForJobs=job.dockEntryPredecessors;}
+        startOwner:'conveyor',conveyor:true,lanePath:cvPath,clearance:Math.max(slot.boxSize[0],slot.boxSize[2])+.3,
+        conveyorLine:inbound?'입고':'출고',conveyorCapacity:5};
+      if(inbound){cvMove.entryQueue='CV:'+dock.id;cvMove.entryOrder=job.dockEntryOrder;cvMove.entryInterval=['D01','D02'].includes(dock.id)?3.5:0;
+        cvMove.entryLimit=!continuous&&['D01','D02'].includes(dock.id)?5:0;cvMove.waitForJobs=job.dockEntryPredecessors;
+        if(continuous&&['D01','D02'].includes(dock.id)){
+          cvMove.entryBalanceWith='CV:'+(dock.id==='D01'?'D02':'D01');
+          cvMove.entryBalanceWait=60;
+        }}
       else cvMove.releaseOnStart=[bufferLock];
       const fork=(height,extra={})=>({actor:amr.code,pose:{forkHeight:height},label:'포크 높이 조정',...extra});
       const handoff=(actor,owner,position,text,effect)=>({...transfer(owner,position,text,effect),actor});
